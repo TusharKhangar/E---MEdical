@@ -1,0 +1,14 @@
+{
+    "configurations": [
+        {
+            "type": "java",
+            "name": "Spring Boot-BioMedicalApplication<bioMedical>",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "mainClass": "com.spring.bioMedical.BioMedicalApplication",
+            "projectName": "bioMedical",
+            "args": "",
+            "envFile": "${workspaceFolder}/.env"
+        }
+    ]
+}
