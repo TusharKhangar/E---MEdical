@@ -63,23 +63,33 @@ oc expose springboot-sample-app --hostname=www.example.com
 <img src="./bioMedical/img/9.png" >
 <img src="./bioMedical/img/10.png" >
 <img src="./bioMedical/img/11.png" >
-<img src="./bioMedical/img/12.png" >
+
+[//]: # (<img src="./bioMedical/img/12.png" >)
 
 # Doctor Panel (Dashboard Access):
 
 
-<img src="./bioMedical/img/13.png" >
-<img src="./bioMedical/img/14.png" >
+[//]: # (<img src="./bioMedical/img/13.png" >)
+
+[//]: # (<img src="./bioMedical/img/14.png" >)
 
 # Master Admin Panel (Dashboard Access):
 
-<img src="./bioMedical/img/15.png" >
-<img src="./bioMedical/img/16.png" >
-<img src="./bioMedical/img/17.png" >
-<img src="./bioMedical/img/18.png" >
-<img src="./bioMedical/img/19.png" >
-<img src="./bioMedical/img/20.png" >
-<img src="./bioMedical/img/21.png" >
-<img src="./bioMedical/img/22.png" >
-<img src="./bioMedical/img/23.png" >
+[//]: # (<img src="./bioMedical/img/15.png" >)
+
+[//]: # (<img src="./bioMedical/img/16.png" >)
+
+[//]: # (<img src="./bioMedical/img/17.png" >)
+
+[//]: # (<img src="./bioMedical/img/18.png" >)
+
+[//]: # (<img src="./bioMedical/img/19.png" >)
+
+[//]: # (<img src="./bioMedical/img/20.png" >)
+
+[//]: # (<img src="./bioMedical/img/21.png" >)
+
+[//]: # (<img src="./bioMedical/img/22.png" >)
+
+[//]: # (<img src="./bioMedical/img/23.png" >)
 
