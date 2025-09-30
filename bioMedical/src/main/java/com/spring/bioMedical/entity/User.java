@@ -1,20 +1,19 @@
 package com.spring.bioMedical.entity;
 
-import  jakarta.persistence.Column;
-import  jakarta.persistence.Entity;
-import  jakarta.persistence.GeneratedValue;
-import  jakarta.persistence.GenerationType;
-import  jakarta.persistence.Id;
-import  jakarta.persistence.Table;
-import  jakarta.validation.constraints.Email;
-import  jakarta.validation.constraints.NotEmpty;
-
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotEmpty;
 import lombok.*;
 import org.springframework.data.annotation.Transient;
 
 /**
- * 
- * @ 
+ *
+ * @
  *
  *
  */
@@ -27,65 +26,69 @@ import org.springframework.data.annotation.Transient;
 public class User {
 
 	@Getter
-    @Id
+	@Id
 	@GeneratedValue(strategy = GenerationType.AUTO)
 	@Column(name = "id")
 	private Long id;
-	
+
 	@Getter
-    @Column(name = "username", nullable = false, unique = true)
+	@Column(name = "username", nullable = false, unique = true)
 	@Email(message = "Please provide a valid e-mail")
 	@NotEmpty(message = "Please provide an e-mail")
 	private String email;
-	
+
 	@Getter
-    @Column(name = "password")
-//	@Transient
+	@Column(name = "password")
 	private String password;
-	
+
+	// Added for password confirmation in registration (not persisted).
+	@Transient
+	private String confirmPassword;
+
 	@Getter
-    @Column(name = "first_name")
+	@Column(name = "first_name")
 	@NotEmpty(message = "Please provide your first name")
 	private String firstName;
-	
+
 	@Getter
-    @Column(name = "last_name")
+	@Column(name = "last_name")
 	@NotEmpty(message = "Please provide your last name")
 	private String lastName;
-	
+
+	// Added for phone number.
+	@Getter
+	@Column(name = "phone_number")
+	private String phoneNumber;
+
 	@Column(name = "enabled")
 	private boolean enabled;
-	
+
 	@Getter
-    @Column(name = "confirmation_token")
+	@Column(name = "confirmation_token")
 	private String confirmationToken;
 
 	@Getter
-    @Column(name = "gender")
+	@Column(name = "gender")
 	private String gender;
-	
-	
+
 	@Getter
-    @Column(name = "authority")
+	@Column(name = "authority")
 	private String role;
-	
+
 	@Getter
-//    @Column(name = "lastseen")
-//	@Transient
+	//    @Column(name = "lastseen")
+	//  @Transient
 	private String lastseen;
 
-
-    public boolean getEnabled() {
+	public boolean getEnabled() {
 		return enabled;
 	}
 
-    @Override
+	@Override
 	public String toString() {
-		return "User [id=" + id + ", email=" + email + ", password=" + password + ", firstName=" + firstName
-				+ ", lastName=" + lastName + ", enabled=" + enabled + ", confirmationToken=" + confirmationToken
+		return "User [id=" + id + ", email=" + email + ", password=" + password + ", confirmPassword=" + confirmPassword +
+				", firstName=" + firstName + ", lastName=" + lastName + ", phoneNumber=" + phoneNumber +
+				", enabled=" + enabled + ", confirmationToken=" + confirmationToken
 				+ ", gender=" + gender + ", role=" + role + ", lastseen=" + lastseen + "]";
 	}
-
-
-
 }

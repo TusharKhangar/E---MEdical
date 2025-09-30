@@ -20,7 +20,7 @@ import org.springframework.data.annotation.Transient;
  */
 @Entity
 @Data
-@Table(name = "app")
+@Table(name = "appointment")
 public class Appointment {
 
 	@Id

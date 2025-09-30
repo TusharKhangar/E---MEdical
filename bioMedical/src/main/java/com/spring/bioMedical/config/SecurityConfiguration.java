@@ -12,16 +12,19 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-import org.springframework.web.servlet.config.annotation.CorsRegistry;
-import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import com.spring.bioMedical.security.JwtFilter;
+
+import java.util.Arrays;
 
 @Configuration
 @EnableWebSecurity
 public class SecurityConfiguration {
 
-	private final JwtFilter jwtFilter; // Inject your JWT filter
+	private final JwtFilter jwtFilter;
 
 	public SecurityConfiguration(JwtFilter jwtFilter) {
 		this.jwtFilter = jwtFilter;
@@ -33,38 +36,71 @@ public class SecurityConfiguration {
 	}
 
 	@Bean
-	public AuthenticationManager authenticationManager(AuthenticationConfiguration authenticationConfiguration) throws Exception {
-		return authenticationConfiguration.getAuthenticationManager();
+	public AuthenticationManager authenticationManager(AuthenticationConfiguration authConfig) throws Exception {
+		return authConfig.getAuthenticationManager();
+	}
+
+	@Bean
+	public CorsConfigurationSource corsConfigurationSource() {
+		CorsConfiguration configuration = new CorsConfiguration();
+
+		configuration.setAllowedOrigins(Arrays.asList(
+				"http://localhost:5173",
+				"http://localhost:3000"
+		));
+
+		configuration.setAllowedMethods(Arrays.asList(
+				"GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"
+		));
+
+		configuration.setAllowedHeaders(Arrays.asList("*"));
+		configuration.setAllowCredentials(true);
+		configuration.setExposedHeaders(Arrays.asList("Authorization"));
+
+		UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+		source.registerCorsConfiguration("/api/**", configuration);
+		return source;
 	}
 
 	@Bean
 	public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
 		http
+				// Enable CORS
+				.cors(cors -> cors.configurationSource(corsConfigurationSource()))
+
+				// Disable CSRF (not needed for REST APIs with JWT)
 				.csrf(AbstractHttpConfigurer::disable)
-				.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-				.authorizeHttpRequests(auth -> auth
-						.requestMatchers("/api/register","/api/login","/confirm","/api/confirm").permitAll()
-						.requestMatchers("/api/admin/**").hasRole("ADMIN")
-						.requestMatchers("/api/user/**").hasRole("USER")
-						.requestMatchers("/register", "/confirm", "/login/**", "/css/**", "/js/**", "/static/**", "/vendor/**", "/resources/**", "/test/send-email").permitAll()
-						.anyRequest().authenticated()
+
+				// Stateless session (JWT-based)
+				.sessionManagement(session ->
+						session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
 				)
+
+				// Configure API endpoint security
+				.authorizeHttpRequests(auth -> auth
+						// Public authentication endpoints
+						.requestMatchers(
+								"/api/register",
+								"/api/login",
+								"/api/confirm",
+								"/api/confirmPassword"
+						).permitAll()
+
+						// Role-based API endpoints
+						.requestMatchers("/api/admin/**").hasRole("ADMIN")
+						.requestMatchers("/api/doctor/**").hasRole("DOCTOR")
+						.requestMatchers("/api/user/**").hasRole("USER")
+
+						// All other API requests require authentication
+						.requestMatchers("/api/**").authenticated()
+
+						// Deny all other requests (since we're API-only)
+						.anyRequest().denyAll()
+				)
+
+				// Add JWT filter before username/password authentication
 				.addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
 
 		return http.build();
-	}
-
-	@Bean
-	public WebMvcConfigurer corsConfigurer() {
-		return new WebMvcConfigurer() {
-			@Override
-			public void addCorsMappings(CorsRegistry registry) {
-				registry.addMapping("/api/**")
-						.allowedOrigins("http://localhost:3000")
-						.allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
-						.allowedHeaders("*")
-						.allowCredentials(true);
-			}
-		};
 	}
 }

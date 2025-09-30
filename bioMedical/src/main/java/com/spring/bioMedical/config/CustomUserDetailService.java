@@ -22,7 +22,7 @@ public class CustomUserDetailService implements UserDetailsService {
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
         Logger logger = LoggerFactory.getLogger(UserDetails.class);
-        logger.debug("loadUserByUsername called for username: {}", username); // Add this line
+        logger.debug("loadUserByUsername called for username: {}", username);
         User user = userRepository.findByEmail(username)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found with username: " + username));
 
@@ -33,7 +33,7 @@ public class CustomUserDetailService implements UserDetailsService {
                 true, true, true,
                 Collections.singleton(new SimpleGrantedAuthority(user.getRole()))
         );
-        logger.debug("loadUserByUsername returning UserDetails for user: {}", user.getEmail()); // Add this
+        logger.debug("loadUserByUsername returning UserDetails for user: {}", user.getEmail());
         return userDetails;
     }
 }

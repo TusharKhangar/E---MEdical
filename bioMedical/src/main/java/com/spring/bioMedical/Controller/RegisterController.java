@@ -75,7 +75,7 @@ public class RegisterController {
 	}
 
 	private static SimpleMailMessage getSimpleMailMessage(HttpServletRequest request, User user) {
-		String appUrl = request.getScheme() + "://" + request.getServerName() + ":" + request.getServerPort() + "/api";
+		String appUrl = "http://localhost:5173"; // Point to React frontend
 
 		SimpleMailMessage registrationEmail = new SimpleMailMessage();
 		registrationEmail.setTo(user.getEmail());
@@ -97,7 +97,7 @@ public class RegisterController {
 		}
 	}
 
-	@PostMapping("/confirm")
+	@PostMapping("/confirmPassword")
 	public ResponseEntity<String> confirmRegistration(@RequestBody ConfirmationRequest confirmationRequest,
 													  BindingResult bindingResult) {
 
