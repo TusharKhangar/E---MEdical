@@ -5,7 +5,6 @@ import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
-import com.spring.bioMedical.entity.Admin;
 import com.spring.bioMedical.entity.User;
 
 /**
@@ -15,9 +14,11 @@ import com.spring.bioMedical.entity.User;
  *
  */
 @Repository("adminRepository")
-public interface AdminRepository extends JpaRepository<Admin, Long> {
+public interface AdminRepository extends JpaRepository<User, Long> {
 
-	Admin findByEmail(String user);
+	User findByEmail(String user);
 	
-	List<Admin> findByRole(String user);
+	List<User> findByRole(String user);
+
+	long countByRole(String role);
 }

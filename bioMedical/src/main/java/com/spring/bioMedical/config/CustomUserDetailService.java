@@ -28,7 +28,8 @@ public class CustomUserDetailService implements UserDetailsService {
 
         UserDetails userDetails = new org.springframework.security.core.userdetails.User(
                 user.getEmail(),
-                user.getPassword(),
+                // New accounts have no password until the e-mailed link is used
+                user.getPassword() == null ? "" : user.getPassword(),
                 user.getEnabled(),
                 true, true, true,
                 Collections.singleton(new SimpleGrantedAuthority(user.getRole()))

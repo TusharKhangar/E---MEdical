@@ -3,10 +3,10 @@ package com.spring.bioMedical.Controller;
 import java.util.Optional;
 import java.util.UUID;
 
-import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.mail.SimpleMailMessage;
@@ -14,15 +14,18 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 
-import com.nulabinc.zxcvbn.Strength;
-import com.nulabinc.zxcvbn.Zxcvbn;
 import com.spring.bioMedical.dto.ConfirmationRequest;
 import com.spring.bioMedical.dto.ConfirmationResponse;
 import com.spring.bioMedical.dto.RegistrationRequest;
 import com.spring.bioMedical.entity.User;
 import com.spring.bioMedical.service.EmailService;
+import com.spring.bioMedical.service.PasswordStrength;
 import com.spring.bioMedical.service.UserService;
 
+/**
+ * Patient sign-up. The account is created disabled; the e-mailed link opens the React app, where the
+ * patient confirms their address and chooses a password, which enables the account.
+ */
 @RestController
 @RequestMapping("/api")
 public class RegisterController {
@@ -30,6 +33,9 @@ public class RegisterController {
 	private final UserService userService;
 	private final EmailService emailService;
 	private final PasswordEncoder passwordEncoder;
+
+	@Value("${app.frontend-url:http://localhost:5173}")
+	private String frontendUrl;
 
 	@Autowired
 	public RegisterController(UserService userService, EmailService emailService, PasswordEncoder passwordEncoder) {
@@ -40,49 +46,42 @@ public class RegisterController {
 
 	@PostMapping("/register")
 	public ResponseEntity<String> registerUser(@Valid @RequestBody RegistrationRequest registrationRequest,
-											   BindingResult bindingResult,
-											   HttpServletRequest request) {
+											   BindingResult bindingResult) {
+
+		if (bindingResult.hasErrors()) {
+			return ResponseEntity.badRequest().body(bindingResult.getFieldErrors().get(0).getDefaultMessage());
+		}
 
 		// Lookup user in database by e-mail
-		Optional<User> userExists = userService.findByEmail(registrationRequest.getEmail());
+		Optional<User> userExists = userService.findByEmail(registrationRequest.getEmail().trim().toLowerCase());
 
 		if (userExists.isPresent()) {
 			return ResponseEntity.status(HttpStatus.CONFLICT).body("Oops!  There is already a user registered with the email provided.");
 		}
 
-		if (bindingResult.hasErrors()) {
-			return ResponseEntity.badRequest().body("Invalid registration data");
-		} else {
-			// new user so we create user and send confirmation e-mail
+		// new user so we create user and send confirmation e-mail
 
-			// Disable user until they click on confirmation link in email
-			User user = registrationRequest.toEntity(); // Convert RegistrationRequest to User
-			user.setEnabled(false);
-			user.setRole("ROLE_USER");
+		// Disable user until they click on confirmation link in email
+		User user = registrationRequest.toEntity(); // Convert RegistrationRequest to User
+		user.setEnabled(false);
+		user.setRole("ROLE_USER");
 
-			// Generate random 36-character string token for confirmation link
-			user.setConfirmationToken(UUID.randomUUID().toString());
+		// Generate random 36-character string token for confirmation link
+		user.setConfirmationToken(UUID.randomUUID().toString());
 
-			userService.saveUser(user);
+		userService.saveUser(user);
 
+		emailService.sendEmail(getSimpleMailMessage(user));
 
-			final SimpleMailMessage registrationEmail = getSimpleMailMessage(request, user);
-
-			emailService.sendEmail(registrationEmail);
-
-			return ResponseEntity.ok("A confirmation e-mail has been sent to " + user.getEmail());
-		}
+		return ResponseEntity.ok("A confirmation e-mail has been sent to " + user.getEmail());
 	}
 
-	private static SimpleMailMessage getSimpleMailMessage(HttpServletRequest request, User user) {
-		String appUrl = "http://localhost:5173"; // Point to React frontend
-
+	private SimpleMailMessage getSimpleMailMessage(User user) {
 		SimpleMailMessage registrationEmail = new SimpleMailMessage();
 		registrationEmail.setTo(user.getEmail());
 		registrationEmail.setSubject("Registration Confirmation");
 		registrationEmail.setText("To confirm your e-mail address, please click the link below:\n"
-				+ appUrl + "/confirm?token=" + user.getConfirmationToken());
-		registrationEmail.setFrom("spring.email.auth@gmail.com");
+				+ frontendUrl + "/confirm?token=" + user.getConfirmationToken());
 		return registrationEmail;
 	}
 
@@ -98,15 +97,15 @@ public class RegisterController {
 	}
 
 	@PostMapping("/confirmPassword")
-	public ResponseEntity<String> confirmRegistration(@RequestBody ConfirmationRequest confirmationRequest,
+	public ResponseEntity<String> confirmRegistration(@Valid @RequestBody ConfirmationRequest confirmationRequest,
 													  BindingResult bindingResult) {
 
-		Zxcvbn passwordCheck = new Zxcvbn();
+		if (bindingResult.hasErrors()) {
+			return ResponseEntity.badRequest().body(bindingResult.getFieldErrors().get(0).getDefaultMessage());
+		}
 
-		Strength strength = passwordCheck.measure(confirmationRequest.getPassword());
-
-		if (strength.getScore() < 3) {
-			return ResponseEntity.badRequest().body("Your password is too weak.  Choose a stronger one.");
+		if (PasswordStrength.isTooWeak(confirmationRequest.getPassword())) {
+			return ResponseEntity.badRequest().body(PasswordStrength.TOO_WEAK_MESSAGE);
 		}
 
 		// Find the user associated with the reset token
@@ -119,6 +118,9 @@ public class RegisterController {
 
 			// Set user to enabled
 			user.get().setEnabled(true);
+
+			// The link is single-use
+			user.get().setConfirmationToken(null);
 
 			// Save user
 			userService.saveUser(user.get());
