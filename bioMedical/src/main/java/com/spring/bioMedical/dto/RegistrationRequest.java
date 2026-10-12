@@ -24,12 +24,22 @@ public class RegistrationRequest {
 
     private String gender;
 
+    @NotEmpty(message = "Please provide your phone number")
+    private String phoneNumber;
+
+    @NotEmpty(message = "Please provide a password")
+    private String password;
+
     public User toEntity() {
         User user = new User();
         user.setEmail(this.email);
         user.setFirstName(this.firstName);
         user.setLastName(this.lastName);
         user.setGender(this.gender);
+        user.setPassword(this.password);
+        if(phoneNumber != null && phoneNumber.matches("^[1-9][0-9]{9}$")) {
+            user.setPhoneNumber(phoneNumber);
+        }
         return user;
     }
 }

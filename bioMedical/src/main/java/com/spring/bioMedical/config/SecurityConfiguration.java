@@ -83,7 +83,9 @@ public class SecurityConfiguration {
 								"/api/register",
 								"/api/login",
 								"/api/confirm",
-								"/api/confirmPassword"
+								"/api/confirmPassword",
+                                "/api/forgotPassword",
+                                "/api/resetPassword"
 						).permitAll()
 
 						// Role-based API endpoints

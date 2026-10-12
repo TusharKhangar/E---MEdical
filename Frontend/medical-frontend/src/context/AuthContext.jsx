@@ -1,6 +1,7 @@
 // src/context/AuthContext.jsx
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import
+    React, { createContext, useContext, useState, useEffect } from 'react';
 import authService from '../services/authService';
 import { USER_ROLES } from '../utils/constants';
 

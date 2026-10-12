@@ -38,6 +38,11 @@ import DoctorDetails from '../components/dashboard/DoctorDetails';
 import AppointmentList from '../components/appointments/AppointmentList';
 import MakeAppointment from '../pages/MakeAppointment';
 import MyProfile from '../components/dashboard/MyProfile';
+import AdminDashboard from '../components/dashboard/AdminDashboard';
+import DoctorDashboard from '../components/dashboard/AdminDashboard';
+import RoleBasedDashboard from '../components/dashboard/AdminDashboard';
+import ForgotPassword from "../pages/ForgotPassword.jsx";
+import ResetPassword from "../pages/ResetPassword.jsx";
 
 const LoadingSpinner = () => (
   <div className="flex justify-center items-center min-h-screen">
@@ -64,14 +69,25 @@ const AppRouter = () => {
         <Route path="/departments" element={<Departments />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
       </Route>
 
       {/* Email Confirmation Routes - Standalone (no MainLayout) */}
       <Route path="/confirm" element={<EmailConfirmation />} />
       <Route path="/set-password" element={<SetPassword />} />
-
+      <Route path="/forgot-password" element={<ForgotPassword />} />
       {/* Protected dashboard with nested children */}
       <Route
+        path="/dashboard" 
+        element={
+          <ProtectedRoute>
+            <Dashboard />
+          </ProtectedRoute>
+        }
+      >
+
+        <Route 
         path="/dashboard"
         element={
           <ProtectedRoute>
@@ -79,6 +95,8 @@ const AppRouter = () => {
           </ProtectedRoute>
         }
       >
+
+      </Route>
         {/* Dashboard Home - default */}
         <Route index element={<DashboardHome />} />
 
