@@ -30,3 +30,6 @@ hs_err_pid*
 
 # Claude Code session files
 .claude/
+
+# React build copied into the jar by the Dockerfile
+bioMedical/src/main/resources/static/

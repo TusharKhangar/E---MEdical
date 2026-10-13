@@ -40,7 +40,7 @@ const Doctors = () => {
           <select
             value={department}
             onChange={(e) => setDepartment(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg bg-white"
+            className="px-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-700"
           >
             <option value="">All departments</option>
             {departments.map(d => <option key={d} value={d}>{d}</option>)}
@@ -62,7 +62,7 @@ const Doctors = () => {
                 className="bg-white shadow rounded-xl p-8 text-center"
               >
                 <div className="text-5xl mb-3">{ICONS[doc.gender] || '🩺'}</div>
-                <h2 className="text-xl font-semibold mb-1">Dr. {doc.firstName} {doc.lastName}</h2>
+                <h2 className="text-xl font-semibold text-gray-800 mb-1">Dr. {doc.firstName} {doc.lastName}</h2>
                 <div className="text-blue-600 mb-4">{doc.specialization || 'General practice'}</div>
                 <Link to={bookLink} className="inline-block px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm">
                   Book Appointment
