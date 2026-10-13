@@ -78,7 +78,7 @@ class AdminInsightsIntegrationTest {
 		mockMvc.perform(get("/api/admin/analytics?days=7").header("Authorization", "Bearer " + adminToken))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.total").value(4))
-				.andExpect(jsonPath("$.completionRate").value(50.0))
+				.andExpect(jsonPath("$.completionRate").value(66.7))
 				.andExpect(jsonPath("$.cancellationRate").value(25.0))
 				// 7 days back including today, plus 14 ahead, with zero-filled days
 				.andExpect(jsonPath("$.perDay", hasSize(21)))

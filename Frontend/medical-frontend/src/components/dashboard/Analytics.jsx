@@ -187,13 +187,14 @@ const Analytics = () => {
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             {[
               { label: 'Appointments', value: data.total.toLocaleString() },
-              { label: 'Completion rate', value: `${data.completionRate}%` },
-              { label: 'Cancellation rate', value: `${data.cancellationRate}%` },
+              { label: 'Completion rate', value: `${data.completionRate}%`, note: 'of finished visits' },
+              { label: 'Cancellation rate', value: `${data.cancellationRate}%`, note: 'of all appointments' },
               { label: 'Busiest time', value: busiestHour && busiestHour.count > 0 ? busiestHour.label : '—' }
             ].map((k) => (
               <div key={k.label} className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
                 <p className="text-sm text-gray-500">{k.label}</p>
                 <p className="text-2xl font-bold text-gray-900 mt-1">{k.value}</p>
+                {k.note && <p className="text-xs text-gray-400">{k.note}</p>}
               </div>
             ))}
           </div>

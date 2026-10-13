@@ -71,7 +71,8 @@ public class AnalyticsService {
 				.map(r -> new DoctorLoad((Long) r[0], (String) r[1], (Long) r[2], number(r[3]), number(r[4])))
 				.toList();
 
-		return new Analytics(from, today.toString(), to, total, rate(completed, total), rate(cancelled, total),
+		// Completion counts only visits that are over (completed or cancelled), not ones still to come
+		return new Analytics(from, today.toString(), to, total, rate(completed, completed + cancelled), rate(cancelled, total),
 				toCounts(byDay), toCounts(byStatus), counts(appointments.countPerDepartment(from, to), "General"),
 				counts(appointments.countPerTime(from, to), "Unknown"), doctors);
 	}
