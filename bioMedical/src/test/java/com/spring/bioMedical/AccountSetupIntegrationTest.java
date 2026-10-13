@@ -2,21 +2,34 @@ package com.spring.bioMedical;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.UUID;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.annotation.DirtiesContext;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 
 import com.spring.bioMedical.config.AccountSetup;
 import com.spring.bioMedical.entity.User;
 import com.spring.bioMedical.repository.UserRepository;
 
 /** Startup account setup: the first administrator, and retiring the old public demo accounts. */
-@SpringBootTest(properties = { "app.admin.email=Owner@Clinic.test", "app.admin.password=Str0ng-Owner-Pass!" })
+@SpringBootTest(properties = "app.admin.email=Owner@Clinic.test")
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 class AccountSetupIntegrationTest {
+
+	// Test passwords are generated at runtime, so no password-looking literal sits in the source
+	private static final String OWNER_PASSWORD = "owner-" + UUID.randomUUID();
+	private static final String CHANGED_PASSWORD = "changed-" + UUID.randomUUID();
+
+	@DynamicPropertySource
+	static void adminPassword(DynamicPropertyRegistry registry) {
+		registry.add("app.admin.password", () -> OWNER_PASSWORD);
+	}
 
 	@Autowired
 	private AccountSetup accountSetup;
@@ -38,13 +51,13 @@ class AccountSetupIntegrationTest {
 		User admin = users.findByEmail("owner@clinic.test").orElseThrow();
 		assertThat(admin.getRole()).isEqualTo("ROLE_ADMIN");
 		assertThat(admin.getEnabled()).isTrue();
-		assertThat(passwordEncoder.matches("Str0ng-Owner-Pass!", admin.getPassword())).isTrue();
+		assertThat(passwordEncoder.matches(OWNER_PASSWORD, admin.getPassword())).isTrue();
 
 		// The owner changes their password in the app; a restart must not reset it
-		admin.setPassword(passwordEncoder.encode("Changed-Later-123!"));
+		admin.setPassword(passwordEncoder.encode(CHANGED_PASSWORD));
 		users.save(admin);
 		accountSetup.run(null);
-		assertThat(passwordEncoder.matches("Changed-Later-123!",
+		assertThat(passwordEncoder.matches(CHANGED_PASSWORD,
 				users.findByEmail("owner@clinic.test").orElseThrow().getPassword())).isTrue();
 		assertThat(users.count()).isEqualTo(1);
 	}
