@@ -70,7 +70,7 @@ test('a wrong password is refused and the session survives a reload until sign-o
 
 test('a forgotten password is reset through the e-mailed link', async ({ page, request }) => {
   const patient = await createPatient(request);
-  const newPassword = 'Moonlight-Ward-7350!';
+  const newPassword = `${STRONG_PASSWORD}-changed`;
 
   await page.goto('/forgot-password');
   await page.locator('input[name="email"]').fill(patient.email);

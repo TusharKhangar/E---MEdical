@@ -7,7 +7,8 @@ export { ADMIN };
 /** Unique e-mail per test run, so tests never collide with each other or a previous run. */
 export const uniqueEmail = (who) => `${who}.${Date.now().toString(36)}${Math.floor(Math.random() * 1000)}@e2e.test`;
 
-export const STRONG_PASSWORD = 'Sunrise-Clinic-4821!';
+// Set once per run in playwright.config.js
+export const STRONG_PASSWORD = process.env.E2E_PASSWORD;
 
 /**
  * The newest link (with ?token=) e-mailed to this address. E-mail runs in log-only mode in tests, so the

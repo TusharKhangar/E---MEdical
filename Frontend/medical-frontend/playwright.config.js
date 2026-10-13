@@ -5,11 +5,18 @@
 //   cd Frontend/medical-frontend && npm run e2e
 //
 // E2E_BASE_URL=https://... runs the read-only smoke tests against a deployed site instead.
+import { randomBytes, randomUUID } from 'crypto';
 import { defineConfig, devices } from '@playwright/test';
 
 const PORT = 8099;
 const external = process.env.E2E_BASE_URL;
-export const ADMIN = { email: 'admin@e2e.test', password: 'E2e-Admin-Pass-2026!' };
+
+// Test-only credentials, generated per run (no password-looking literals in the source). They go through
+// process.env so the test workers, which load this file again, see the same values as the app server.
+process.env.E2E_ADMIN_PASSWORD ||= `e2e-admin-${randomUUID()}`;
+process.env.E2E_PASSWORD ||= `e2e-user-${randomUUID()}`;
+process.env.E2E_JWT_SECRET ||= randomBytes(32).toString('base64');
+export const ADMIN = { email: 'admin@e2e.test', password: process.env.E2E_ADMIN_PASSWORD };
 export const APP_LOG = 'e2e/.app.log';
 
 export default defineConfig({
@@ -44,7 +51,7 @@ export default defineConfig({
       DB_URL: 'jdbc:h2:mem:e2e;MODE=MySQL;DB_CLOSE_DELAY=-1;NON_KEYWORDS=USER,DATE,TIME,VALUE',
       DB_USERNAME: 'sa',
       DB_PASSWORD: '',
-      JWT_SECRET: 'ZTJlLW9ubHktc2lnbmluZy1rZXktbm90LWEtcmVhbC1zZWNyZXQtMDEyMzQ1Njc4OQ==',
+      JWT_SECRET: process.env.E2E_JWT_SECRET,
       ADMIN_EMAIL: ADMIN.email,
       ADMIN_PASSWORD: ADMIN.password,
       MAIL_USERNAME: '',
