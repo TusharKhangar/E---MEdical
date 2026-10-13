@@ -220,7 +220,7 @@ const Home = () => {
             <div className="lg:w-1/3 bg-blue-600 text-white p-8">
               <h3 className="text-2xl font-bold mb-6">Medical Departments</h3>
               <div className="space-y-2">
-                {departments.length === 0 && <p className="text-blue-100">Loading departments...</p>}
+                {departments.length === 0 && <p className="text-white">Loading departments...</p>}
                 {departments.map((dept, index) => (
                   <motion.div
                     key={dept.name}
@@ -330,7 +330,7 @@ const Home = () => {
                   <span className="text-3xl mr-3">{tip.icon}</span>
                   <div>
                     <h4 className="font-semibold text-gray-800">{tip.title}</h4>
-                    <span className="text-xs text-blue-600 bg-blue-100 px-2 py-1 rounded-full">{tip.category}</span>
+                    <span className="text-xs text-blue-800 bg-blue-100 px-2 py-1 rounded-full">{tip.category}</span>
                   </div>
                 </div>
                 <p className="text-gray-600 text-sm">{tip.tip}</p>

@@ -156,6 +156,7 @@ const SetPassword = () => {
                     type="button"
                     className="text-gray-400 hover:text-gray-500"
                     onClick={() => setShowPassword(!showPassword)}
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
                   >
                     {showPassword ? (
                       <EyeSlashIcon className="h-5 w-5" />
@@ -207,6 +208,7 @@ const SetPassword = () => {
                     type="button"
                     className="text-gray-400 hover:text-gray-500"
                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
                   >
                     {showConfirmPassword ? (
                       <EyeSlashIcon className="h-5 w-5" />

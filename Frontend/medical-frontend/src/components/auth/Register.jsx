@@ -208,6 +208,7 @@ const Register = () => {
               transition={{ delay: 0.5 }}
             >
               <select
+                aria-label="Gender"
                 name="gender"
                 value={formData.gender}
                 onChange={handleChange}

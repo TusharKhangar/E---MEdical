@@ -33,3 +33,8 @@ hs_err_pid*
 
 # React build copied into the jar by the Dockerfile
 bioMedical/src/main/resources/static/
+
+# Playwright
+Frontend/medical-frontend/e2e/.results/
+Frontend/medical-frontend/e2e/.report/
+Frontend/medical-frontend/e2e/.app.log*
