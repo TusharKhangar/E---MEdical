@@ -164,6 +164,27 @@ public class AdminController {
 		return ResponseEntity.ok(new AppointmentDto(appointmentServiceImplementation.changeStatus(appointment, status)));
 	}
 
+	/** How e-mail leaves this deployment, for the admin dashboard. */
+	@GetMapping("/mail")
+	public ResponseEntity<Map<String, Object>> getMailStatus() {
+		return ResponseEntity.ok(Map.of("mode", emailService.mode(), "description", emailService.describe(),
+				"configured", !"log-only".equals(emailService.mode())));
+	}
+
+	/** Sends a test e-mail to the signed-in administrator and reports the provider's answer. */
+	@PostMapping("/mail/test")
+	public ResponseEntity<String> sendTestMail() {
+		User me = adminServiceImplementation.findByEmail(getLoggedInUsername());
+		SimpleMailMessage message = new SimpleMailMessage();
+		message.setTo(me.getEmail());
+		message.setSubject("E-Medical: test e-mail");
+		message.setText("Hello " + me.getFirstName() + ",\n\nE-mail from your E-Medical deployment is working.\n\n"
+				+ "Sent via " + emailService.describe() + ".");
+		return emailService.sendNow(message)
+				.map(error -> ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(error))
+				.orElseGet(() -> ResponseEntity.ok("Test e-mail sent to " + me.getEmail() + ". Check your inbox and spam folder."));
+	}
+
 	/** Counts for the admin dashboard cards. */
 	@GetMapping("/stats")
 	public ResponseEntity<Map<String, Long>> getStats() {

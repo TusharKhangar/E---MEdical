@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { BarChart3, CalendarDays, CheckCircle2, Stethoscope, UserPlus, Users } from 'lucide-react';
+import { BarChart3, CalendarDays, CheckCircle2, Mail, Stethoscope, UserPlus, Users } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { medicalService, errorMessage } from '../../services/medicalService';
 import StatusBadge from '../common/StatusBadge';
@@ -15,6 +15,8 @@ const AdminDashboard = () => {
   const [pending, setPending] = useState([]);
   const [recent, setRecent] = useState([]);
   const [busyId, setBusyId] = useState(null);
+  const [mail, setMail] = useState(null);
+  const [testing, setTesting] = useState(false);
 
   const load = async () => {
     try {
@@ -32,7 +34,21 @@ const AdminDashboard = () => {
     }
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+    medicalService.getMailStatus().then(setMail).catch(() => {});
+  }, []);
+
+  const sendTestEmail = async () => {
+    setTesting(true);
+    try {
+      toast.success(await medicalService.sendTestEmail(), { duration: 6000 });
+    } catch (error) {
+      toast.error(errorMessage(error, 'The test e-mail could not be sent'), { duration: 8000 });
+    } finally {
+      setTesting(false);
+    }
+  };
 
   const handleStatus = async (id, status) => {
     setBusyId(id);
@@ -60,6 +76,28 @@ const AdminDashboard = () => {
         <Stat label="Appointments" value={stats?.appointments?.toLocaleString()} note={`${stats?.pending ?? 0} awaiting a doctor`} Icon={CalendarDays} />
         <Stat label="Completed" value={stats?.completed?.toLocaleString()} note={`${stats?.cancelled ?? 0} cancelled`} Icon={CheckCircle2} />
       </div>
+
+      {mail && (
+        <section className={`card flex flex-wrap items-center justify-between gap-4 px-5 py-4 ${mail.configured ? '' : 'border-amber-300 bg-amber-50'}`}
+          aria-labelledby="mail-status">
+          <div className="flex items-start gap-3">
+            <Mail className={`mt-0.5 h-5 w-5 shrink-0 ${mail.configured ? 'text-brand-700' : 'text-amber-700'}`} strokeWidth={1.75} aria-hidden="true" />
+            <div>
+              <h2 id="mail-status" className="text-sm font-semibold text-slate-900">
+                {mail.configured ? 'E-mail is set up' : 'E-mail is not set up'}
+              </h2>
+              <p className="text-sm text-slate-600">
+                {mail.configured
+                  ? `${mail.description}. Sign-up links, reminders and password resets go out from here.`
+                  : 'Sign-up links, reminders and password resets are only written to the server log. Set BREVO_API_KEY and MAIL_FROM in the hosting settings.'}
+              </p>
+            </div>
+          </div>
+          <button onClick={sendTestEmail} disabled={testing} className="btn-secondary">
+            {testing ? 'Sending…' : 'Send me a test e-mail'}
+          </button>
+        </section>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Panel

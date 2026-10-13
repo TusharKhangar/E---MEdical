@@ -102,7 +102,7 @@ Registration, staff invitations, password resets and appointment updates are sen
 2. **SMTP** (`MAIL_USERNAME` / `MAIL_PASSWORD`, Gmail by default; use an [app password](https://support.google.com/accounts/answer/185833)).
 3. Neither set: the message is written to the application log, link included, so local development works offline.
 
-The startup log says which one is active (`E-mail delivery: brevo | smtp | log-only`).
+The startup log says which one is active (`E-mail delivery: brevo | smtp | log-only`), and the admin dashboard shows it with a **Send me a test e-mail** button that reports the provider's answer.
 
 ## Configuration
 
@@ -150,6 +150,7 @@ All endpoints are under `/api`. Protected ones need `Authorization: Bearer <jwt>
 | GET | `/appointments/{id}/prescription/pdf` | patient, doctor, admin | Prescription as a PDF |
 | GET | `/admin/stats` | admin | Dashboard counts |
 | GET | `/admin/analytics?days=30` | admin | Grouped numbers for the charts |
+| GET, POST | `/admin/mail`, `/admin/mail/test` | admin | How e-mail is delivered; send yourself a test e-mail |
 | GET | `/admin/appointments/search?q=&status=&doctorId=&from=&to=&sort=&page=&size=` | admin | Server-side search and paging |
 | GET | `/admin/accounts?role=USER\|DOCTOR\|ADMIN&q=&page=&size=` | admin | Server-side account search |
 | GET | `/admin/users`, `/admin/doctors`, `/admin/admins` | admin | Account lists |
@@ -166,7 +167,7 @@ Errors are returned as plain text with a matching HTTP status (`400` validation,
 ## Tests
 
 ```bash
-cd bioMedical && ./mvnw test            # 60 backend tests
+cd bioMedical && ./mvnw test            # 65 backend tests
 cd Frontend/medical-frontend && npm test  # 17 frontend tests (Vitest + Testing Library)
 cd Frontend/medical-frontend && npm run e2e  # 35 browser tests (Playwright) against the built jar
 ```

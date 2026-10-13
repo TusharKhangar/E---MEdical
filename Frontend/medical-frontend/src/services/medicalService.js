@@ -73,6 +73,8 @@ export const medicalService = {
   // { role: 'USER' | 'DOCTOR' | 'ADMIN', q, page, size }
   searchAccounts: (params) => data(api.get('/admin/accounts', { params: clean(params) })),
   getAnalytics: (days = 30) => data(api.get('/admin/analytics', { params: { days } })),
+  getMailStatus: () => data(api.get('/admin/mail')),
+  sendTestEmail: () => data(api.post('/admin/mail/test')),
   setMessageHandled: (id, handled) => data(api.patch(`/admin/messages/${id}`, { handled })),
 };
 
