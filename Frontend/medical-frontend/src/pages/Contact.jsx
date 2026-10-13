@@ -15,7 +15,7 @@ const Contact = () => {
           <h1 className="text-4xl font-bold text-gray-900 mb-4">Contact Us</h1>
           <p className="text-xl text-gray-600 max-w-3xl mx-auto">
             Get in touch with us for appointments, inquiries, or emergency services. 
-            We're here to help you 24/7.
+            We&apos;re here to help you 24/7.
           </p>
         </motion.div>
 

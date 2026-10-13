@@ -27,3 +27,6 @@ hs_err_pid*
 # Local secrets
 .env
 *.env.local
+
+# Claude Code session files
+.claude/

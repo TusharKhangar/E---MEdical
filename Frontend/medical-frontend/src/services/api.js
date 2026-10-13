@@ -5,7 +5,9 @@
     import toast from 'react-hot-toast';
 
     // API base URL - Update this to match your backend
-    const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
+    // Same-origin by default: Vite proxies /api to the backend in development, and in
+    // production the Spring Boot jar serves this app. Set VITE_API_URL to point elsewhere.
+    const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
     // Create axios instance
     const api = axios.create({
@@ -38,9 +40,23 @@
       },
       (error) => {
         const { status, data } = error.response || {};
+        const url = error.config?.url || '';
+        // The backend answers errors with plain text; a few send { message }
+        const serverMessage = typeof data === 'string' && data.trim() ? data : data?.message;
+
+        // Sign-in and registration pages show their own messages
+        const isAuthCall = /\/(login|register|confirmPassword|resetPassword|forgotPassword)$/.test(url);
+        if (isAuthCall) {
+          return Promise.reject(error);
+        }
 
         // Handle different error statuses
         switch (status) {
+          case 400:
+          case 409:
+            // Validation or business-rule error: the screen shows the server's text
+            break;
+
           case 401:
             // Unauthorized - clear storage and redirect to login
             localStorage.removeItem(STORAGE_KEYS.TOKEN);
@@ -57,7 +73,7 @@
             break;
 
           case 404:
-            toast.error('Resource not found.');
+            toast.error(serverMessage || 'Resource not found.');
             break;
 
           case 422:
@@ -90,7 +106,7 @@
             if (!error.response) {
               toast.error('Network error. Please check your connection.');
             } else {
-              toast.error(data?.message || 'An unexpected error occurred');
+              toast.error(serverMessage || 'An unexpected error occurred');
             }
         }
 

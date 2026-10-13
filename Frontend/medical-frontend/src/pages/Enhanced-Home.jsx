@@ -424,7 +424,7 @@ const Home = () => {
                     </div>
                   </div>
                 </div>
-                <p className="text-gray-600 italic">"{testimonial.text}"</p>
+                <p className="text-gray-600 italic">&ldquo;{testimonial.text}&rdquo;</p>
               </motion.div>
             ))}
           </div>

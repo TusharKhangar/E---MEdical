@@ -19,17 +19,14 @@ import Departments from '../pages/Department';
 // Email Confirmation Components
 import EmailConfirmation from '../pages/EmailConfirmation';
 import SetPassword from '../pages/SetPassword';
+import ForgotPassword from '../pages/ForgotPassword.jsx';
+import ResetPassword from '../pages/ResetPassword.jsx';
 
-// Dashboard Layout Component  
+// Dashboard Layout Component
 import Dashboard from '../pages/Dashboard';
 
 // Dashboard Components
 import DashboardHome from '../components/dashboard/DashboardHome';
-import MyTasks from '../components/dashboard/MyTasks';
-import Overview from '../components/dashboard/Overview';
-import Messages from '../components/dashboard/Messages';
-import Calendar from '../components/dashboard/Calender';
-import Settings from '../components/dashboard/Settings';
 import UserDetails from '../components/dashboard/UserDetails';
 import AddDoctorForm from '../components/dashboard/AddDoctorForm';
 import AddAdminForm from '../components/dashboard/AddAdminForm';
@@ -38,16 +35,19 @@ import DoctorDetails from '../components/dashboard/DoctorDetails';
 import AppointmentList from '../components/appointments/AppointmentList';
 import MakeAppointment from '../pages/MakeAppointment';
 import MyProfile from '../components/dashboard/MyProfile';
-import AdminDashboard from '../components/dashboard/AdminDashboard';
-import DoctorDashboard from '../components/dashboard/AdminDashboard';
-import RoleBasedDashboard from '../components/dashboard/AdminDashboard';
-import ForgotPassword from "../pages/ForgotPassword.jsx";
-import ResetPassword from "../pages/ResetPassword.jsx";
 
 const LoadingSpinner = () => (
   <div className="flex justify-center items-center min-h-screen">
     <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-500"></div>
   </div>
+);
+
+const adminOnly = (element) => (
+  <ProtectedRoute requiredRole={USER_ROLES.ADMIN}>{element}</ProtectedRoute>
+);
+
+const patientOnly = (element) => (
+  <ProtectedRoute requiredRoles={[USER_ROLES.USER, USER_ROLES.PATIENT]}>{element}</ProtectedRoute>
 );
 
 const AppRouter = () => {
@@ -69,25 +69,16 @@ const AppRouter = () => {
         <Route path="/departments" element={<Departments />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
-      <Route path="/forgot-password" element={<ForgotPassword />} />
-      <Route path="/reset-password" element={<ResetPassword />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
       </Route>
 
       {/* Email Confirmation Routes - Standalone (no MainLayout) */}
       <Route path="/confirm" element={<EmailConfirmation />} />
       <Route path="/set-password" element={<SetPassword />} />
-      <Route path="/forgot-password" element={<ForgotPassword />} />
-      {/* Protected dashboard with nested children */}
-      <Route
-        path="/dashboard" 
-        element={
-          <ProtectedRoute>
-            <Dashboard />
-          </ProtectedRoute>
-        }
-      >
 
-        <Route 
+      {/* Protected dashboard with nested children; the home page depends on the role */}
+      <Route
         path="/dashboard"
         element={
           <ProtectedRoute>
@@ -95,75 +86,31 @@ const AppRouter = () => {
           </ProtectedRoute>
         }
       >
-
-      </Route>
-        {/* Dashboard Home - default */}
         <Route index element={<DashboardHome />} />
 
-        {/* MISSING ROUTES - ADD THESE */}
-        <Route path="my-tasks" element={<MyTasks />} />
-        <Route path="overview" element={<Overview />} />
-        <Route path="messages" element={<Messages />} />
-        <Route path="calendar" element={<Calendar />} />
-        <Route path="settings" element={<Settings />} />
-
-        {/* User Management */}
-        <Route path="users" element={
-          <ProtectedRoute requiredRoles={[USER_ROLES.ADMIN]}>
-            <UserDetails />
-          </ProtectedRoute>
-        } />
-
-        {/* Doctor Management */}
-        <Route path="add-doctor" element={
-          <ProtectedRoute requiredRoles={[USER_ROLES.ADMIN]}>
-            <AddDoctorForm />
-          </ProtectedRoute>
-        } />
-        <Route path="doctor-details" element={<DoctorDetails />} />
-
-        {/* Admin Management */}
-        <Route path="add-admin" element={
-          <ProtectedRoute requiredRole={USER_ROLES.ADMIN}>
-            <AddAdminForm />
-          </ProtectedRoute>
-        } />
-        <Route path="admin-details" element={
-          <ProtectedRoute requiredRole={USER_ROLES.ADMIN}>
-            <AdminDetails />
-          </ProtectedRoute>
-        } />
-
-        {/* Appointments */}
+        {/* Appointments (every role sees its own) */}
         <Route path="appointments" element={<AppointmentList />} />
-        <Route path="make-appointment" element={<MakeAppointment />} />
+        <Route path="make-appointment" element={patientOnly(<MakeAppointment />)} />
 
-        {/* Profile */}
+        {/* Admin: people management */}
+        <Route path="users" element={adminOnly(<UserDetails />)} />
+        <Route path="doctor-details" element={adminOnly(<DoctorDetails />)} />
+        <Route path="add-doctor" element={adminOnly(<AddDoctorForm />)} />
+        <Route path="admin-details" element={adminOnly(<AdminDetails />)} />
+        <Route path="add-admin" element={adminOnly(<AddAdminForm />)} />
+
+        {/* Account */}
         <Route path="my-profile" element={<MyProfile />} />
+        <Route path="settings" element={<Navigate to="/dashboard/my-profile" replace />} />
 
         {/* Catch-all for unknown dashboard routes */}
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Route>
 
-      {/* Additional protected admin routes */}
-      <Route
-        path="/admin/*"
-        element={
-          <ProtectedRoute requiredRole={USER_ROLES.ADMIN}>
-            <Dashboard />
-          </ProtectedRoute>
-        }
-      />
-
-      {/* Additional protected doctor routes */}
-      <Route
-        path="/doctor/*"
-        element={
-          <ProtectedRoute requiredRoles={[USER_ROLES.ADMIN, USER_ROLES.DOCTOR]}>
-            <Dashboard />
-          </ProtectedRoute>
-        }
-      />
+      {/* Old role-specific URLs now live under /dashboard */}
+      <Route path="/admin/*" element={<Navigate to="/dashboard" replace />} />
+      <Route path="/doctor/*" element={<Navigate to="/dashboard" replace />} />
+      <Route path="/appointment" element={<Navigate to="/dashboard/make-appointment" replace />} />
 
       {/* Catch all route - always redirect unknown routes to home */}
       <Route path="*" element={<Navigate to="/" replace />} />
