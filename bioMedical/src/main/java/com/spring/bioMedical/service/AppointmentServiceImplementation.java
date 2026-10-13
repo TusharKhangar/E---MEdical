@@ -32,14 +32,16 @@ public class AppointmentServiceImplementation  {
 	private final AppointmentRepository appointmentRepository;
 	private final AdminRepository userRepository;
 	private final ScheduleService scheduleService;
+	private final NotificationService notifications;
 
 	@Autowired
 	public AppointmentServiceImplementation(AppointmentRepository appointmentRepository, AdminRepository userRepository,
-			ScheduleService scheduleService)
+			ScheduleService scheduleService, NotificationService notifications)
 	{
 		this.appointmentRepository = appointmentRepository;
 		this.userRepository = userRepository;
 		this.scheduleService = scheduleService;
+		this.notifications = notifications;
 	}
 
 
@@ -100,7 +102,9 @@ public class AppointmentServiceImplementation  {
 		appointment.setDescription(description);
 		appointment.setStatus(Appointment.PENDING);
 		appointment.setRegtime(LocalDateTime.now().withNano(0).toString());
-		return appointmentRepository.save(appointment);
+		Appointment saved = appointmentRepository.save(appointment);
+		notifications.bookingReceived(saved);
+		return saved;
 	}
 
 	/**
@@ -120,7 +124,10 @@ public class AppointmentServiceImplementation  {
 		appointment.setDate(date);
 		appointment.setTime(time);
 		appointment.setStatus(Appointment.PENDING);
-		return appointmentRepository.save(appointment);
+		appointment.setReminderSent(false);
+		Appointment saved = appointmentRepository.save(appointment);
+		notifications.rescheduled(saved);
+		return saved;
 	}
 
 	/** Every rule a new booking or a new time must pass. Call inside a transaction. */
@@ -159,6 +166,12 @@ public class AppointmentServiceImplementation  {
 	 */
 	@Transactional
 	public Appointment changeStatus(Appointment appointment, String newStatus) {
+		return changeStatus(appointment, newStatus, false);
+	}
+
+	/** As above; byPatient decides who gets the e-mail (the doctor when a patient cancels). */
+	@Transactional
+	public Appointment changeStatus(Appointment appointment, String newStatus, boolean byPatient) {
 		if (!appointment.isActive()) {
 			throw new ApiException(HttpStatus.BAD_REQUEST,
 					"This appointment is already " + appointment.getStatus().toLowerCase() + ".");
@@ -174,7 +187,9 @@ public class AppointmentServiceImplementation  {
 					+ newStatus + ".");
 		}
 		appointment.setStatus(newStatus);
-		return appointmentRepository.save(appointment);
+		Appointment saved = appointmentRepository.save(appointment);
+		notifications.statusChanged(saved, byPatient);
+		return saved;
 	}
 
 	public long countByStatus(String status) {

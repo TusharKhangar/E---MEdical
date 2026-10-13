@@ -67,7 +67,7 @@ public class UserController {
 				.filter(a -> getLoggedInUsername().equalsIgnoreCase(a.getEmail()))
 				.orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Appointment not found"));
 		return ResponseEntity.ok(new AppointmentDto(
-				appointmentServiceImplementation.changeStatus(appointment, Appointment.CANCELLED)));
+				appointmentServiceImplementation.changeStatus(appointment, Appointment.CANCELLED, true)));
 	}
 
 	/** Move one of my appointments to another free slot with the same doctor. Body: {"date": "...", "time": "10:00"}. */

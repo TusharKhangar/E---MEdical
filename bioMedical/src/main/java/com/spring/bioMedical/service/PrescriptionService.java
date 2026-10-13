@@ -27,10 +27,13 @@ public class PrescriptionService {
 
 	private final PrescriptionRepository prescriptions;
 	private final AppointmentRepository appointments;
+	private final NotificationService notifications;
 
-	public PrescriptionService(PrescriptionRepository prescriptions, AppointmentRepository appointments) {
+	public PrescriptionService(PrescriptionRepository prescriptions, AppointmentRepository appointments,
+			NotificationService notifications) {
 		this.prescriptions = prescriptions;
 		this.appointments = appointments;
+		this.notifications = notifications;
 	}
 
 	/** Creates or replaces the prescription; a confirmed visit becomes COMPLETED. */
@@ -72,9 +75,13 @@ public class PrescriptionService {
 		}
 		p = prescriptions.save(p);
 
+		boolean firstTime = !Appointment.COMPLETED.equals(appointment.getStatus());
 		appointment.setHasPrescription(true);
 		appointment.setStatus(Appointment.COMPLETED);
 		appointments.save(appointment);
+		if (firstTime) {
+			notifications.statusChanged(appointment, false);
+		}
 		return PrescriptionDto.of(p, appointment);
 	}
 

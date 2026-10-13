@@ -50,6 +50,15 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Long> 
 
 	long countByStatus(String status);
 
+	/** HQL: active appointments on a date whose reminder e-mail hasn't gone out yet. */
+	@Query("""
+			select a from Appointment a
+			where a.date = :date
+			  and (a.status is null or a.status in ('PENDING', 'CONFIRMED'))
+			  and (a.reminderSent is null or a.reminderSent = false)
+			""")
+	List<Appointment> findDueReminders(@Param("date") String date);
+
 	/** HQL: pending or confirmed appointments a doctor has on a date. */
 	@Query("""
 			select count(a) from Appointment a
