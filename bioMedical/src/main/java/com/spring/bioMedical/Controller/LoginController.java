@@ -20,6 +20,7 @@ import com.spring.bioMedical.dto.LoginResponse;
 import com.spring.bioMedical.entity.User;
 import com.spring.bioMedical.security.JwtUtil;
 import com.spring.bioMedical.service.AdminServiceImplementation;
+import com.spring.bioMedical.service.DemoMode;
 import com.spring.bioMedical.service.LoginAttemptService;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -34,13 +35,16 @@ public class LoginController {
 	private final JwtUtil jwtUtil;
 	private final AdminServiceImplementation adminServiceImplementation;
 	private final LoginAttemptService loginAttempts;
+	private final DemoMode demoMode;
 
 	public LoginController(AuthenticationManager authenticationManager, JwtUtil jwtUtil,
-			AdminServiceImplementation adminServiceImplementation, LoginAttemptService loginAttempts) {
+			AdminServiceImplementation adminServiceImplementation, LoginAttemptService loginAttempts,
+			DemoMode demoMode) {
 		this.authenticationManager = authenticationManager;
 		this.jwtUtil = jwtUtil;
 		this.adminServiceImplementation = adminServiceImplementation;
 		this.loginAttempts = loginAttempts;
+		this.demoMode = demoMode;
 	}
 
 	@PostMapping("/login")
@@ -52,7 +56,11 @@ public class LoginController {
 		}
 		String email = loginRequest.getUsername().trim().toLowerCase();
 
-		long locked = loginAttempts.minutesLocked(email);
+		// The shared demo accounts have a published password, so locking them only lets one visitor
+		// shut everyone else out of the demo
+		boolean lockable = !demoMode.isProtectedAccount(email);
+
+		long locked = lockable ? loginAttempts.minutesLocked(email) : 0;
 		if (locked > 0) {
 			return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
 					.body("Too many failed sign-in attempts. Please try again in " + locked + " minute"
@@ -75,7 +83,9 @@ public class LoginController {
 			return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
 					.body("Please confirm your e-mail and set a password using the link we sent you.");
 		} catch (AuthenticationException e) {
-			loginAttempts.recordFailure(email);
+			if (lockable) {
+				loginAttempts.recordFailure(email);
+			}
 			return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid email or password");
 		}
 	}
