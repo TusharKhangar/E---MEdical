@@ -59,6 +59,9 @@ public class RegisterControllerTest {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
+    // Fixture value for tests only; must score at least 3 on zxcvbn
+    private static final String TEST_PASSWORD = "orange-kettle-maple-bridge-77";
+
     private RegistrationRequest validRegistration;
     private User validUser;
     private ConfirmationRequest validConfirmation;
@@ -82,7 +85,7 @@ public class RegisterControllerTest {
 
         validConfirmation = new ConfirmationRequest();
         validConfirmation.setToken("test-token-123");
-        validConfirmation.setPassword("StrongP@ssw0rd123");
+        validConfirmation.setPassword(TEST_PASSWORD);
     }
 
     @Test
@@ -168,7 +171,7 @@ public class RegisterControllerTest {
                 .andExpect(content().string(containsString("password has been set")));
 
         verify(userService).saveUser(argThat(u -> u.getEnabled() && u.getConfirmationToken() == null
-                && passwordEncoder.matches("StrongP@ssw0rd123", u.getPassword())));
+                && passwordEncoder.matches(TEST_PASSWORD, u.getPassword())));
     }
 
     @Test
