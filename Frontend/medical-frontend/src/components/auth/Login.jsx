@@ -10,10 +10,7 @@ import {
   EnvelopeIcon, 
   LockClosedIcon 
 } from '@heroicons/react/24/outline';
-import { DEMO_ACCOUNTS } from '../../utils/constants';
 
-// Demo accounts exist only on deployments started with SEED_DEMO_DATA=true
-const SHOW_DEMO_ACCOUNTS = import.meta.env.VITE_SHOW_DEMO_ACCOUNTS === 'true';
 
 const Login = () => {
   const [formData, setFormData] = useState({
@@ -51,13 +48,6 @@ const Login = () => {
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const handleDemoLogin = (demoUser) => {
-    setFormData({
-      email: demoUser.email,
-      password: demoUser.password
-    });
   };
 
   return (
@@ -187,39 +177,6 @@ const Login = () => {
           </p>
         </motion.div>
 
-        {/* Demo Credentials */}
-        {SHOW_DEMO_ACCOUNTS && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.8 }}
-          className="mt-8 p-4 bg-gray-50 rounded-lg border"
-        >
-          <h4 className="text-sm font-semibold text-gray-700 mb-3 text-center">Demo Credentials:</h4>
-          <div className="space-y-2">
-            {DEMO_ACCOUNTS.map((demoUser, index) => (
-              <div 
-                key={index}
-                className="flex justify-between items-center p-2 bg-white rounded border hover:bg-blue-50 cursor-pointer transition duration-200"
-                onClick={() => handleDemoLogin(demoUser)}
-              >
-                <div className="text-xs">
-                  <div className="font-medium text-gray-800">
-                    {demoUser.role.replace('ROLE_', '')}
-                  </div>
-                  <div className="text-gray-600">{demoUser.email}</div>
-                </div>
-                <div className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
-                  {demoUser.password}
-                </div>
-              </div>
-            ))}
-          </div>
-          <p className="text-xs text-gray-500 mt-2 text-center">
-            Click on any credential to auto-fill the form
-          </p>
-        </motion.div>
-        )}
       </motion.div>
     </div>
   );

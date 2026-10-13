@@ -23,8 +23,7 @@ public class OpenApiConfig {
 								Hospital appointment API. Patients book doctors, doctors manage their schedule and \
 								administrators run the clinic.
 
-								To try protected endpoints: call `POST /api/login` with a demo account \
-								(e.g. `patient@emedical.demo` / `Demo@Clinic2025`), copy `jwt` from the response, \
+								To try protected endpoints: call `POST /api/login` with your account, copy `jwt` from the response, \
 								click **Authorize** and paste it. Errors are returned as plain text.""")
 						.license(new License().name("Apache 2.0").url("https://www.apache.org/licenses/LICENSE-2.0")))
 				.components(new Components().addSecuritySchemes("bearer",

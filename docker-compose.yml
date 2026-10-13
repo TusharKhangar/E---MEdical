@@ -3,8 +3,8 @@
 #   docker compose up --build
 #   open http://localhost:8080
 #
-# Demo accounts are created on first start (SEED_DEMO_DATA=true); see the README for the logins.
-# E-mail is optional: without MAIL_USERNAME/MAIL_PASSWORD, confirmation links are printed in the app logs.
+# Sign in with ADMIN_EMAIL / ADMIN_PASSWORD from your .env (the first administrator is created on first start).
+# E-mail is optional: without BREVO_API_KEY or MAIL_USERNAME/MAIL_PASSWORD, links are printed in the app logs.
 
 services:
   db:
@@ -25,8 +25,6 @@ services:
   app:
     build:
       context: .
-      args:
-        VITE_SHOW_DEMO_ACCOUNTS: "true"
     ports:
       - "8080:8080"
     environment:
@@ -34,11 +32,14 @@ services:
       DB_USERNAME: emedical
       DB_PASSWORD: emedical
       JWT_SECRET: ${JWT_SECRET:-Zm9yLWxvY2FsLWRvY2tlci1vbmx5LWNoYW5nZS1tZS1pbi1wcm9kdWN0aW9uIQ==}
-      SEED_DEMO_DATA: "true"
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
       FRONTEND_URL: http://localhost:8080
       CORS_ALLOWED_ORIGINS: http://localhost:8080
       MAIL_USERNAME: ${MAIL_USERNAME:-}
       MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+      BREVO_API_KEY: ${BREVO_API_KEY:-}
+      MAIL_FROM: ${MAIL_FROM:-}
     depends_on:
       db:
         condition: service_healthy

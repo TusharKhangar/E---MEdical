@@ -19,7 +19,6 @@ import com.spring.bioMedical.dto.ConfirmationResponse;
 import com.spring.bioMedical.dto.LinkResponse;
 import com.spring.bioMedical.dto.RegistrationRequest;
 import com.spring.bioMedical.entity.User;
-import com.spring.bioMedical.service.DemoMode;
 import com.spring.bioMedical.service.EmailService;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -39,23 +38,20 @@ public class RegisterController {
 	private final UserService userService;
 	private final EmailService emailService;
 	private final PasswordEncoder passwordEncoder;
-	private final DemoMode demoMode;
 
 	@Value("${app.frontend-url:http://localhost:5173}")
 	private String frontendUrl;
 
 	@Autowired
-	public RegisterController(UserService userService, EmailService emailService, PasswordEncoder passwordEncoder,
-			DemoMode demoMode) {
+	public RegisterController(UserService userService, EmailService emailService, PasswordEncoder passwordEncoder) {
 		this.userService = userService;
 		this.emailService = emailService;
         this.passwordEncoder = passwordEncoder;
-        this.demoMode = demoMode;
     }
 
 	@PostMapping("/register")
 	@Operation(summary = "Register as a patient",
-			description = "Creates a disabled account and e-mails a confirmation link. In demo mode the link is also returned as `link`.")
+			description = "Creates a disabled account and e-mails a confirmation link.")
 	public ResponseEntity<?> registerUser(@Valid @RequestBody RegistrationRequest registrationRequest,
 											   BindingResult bindingResult) {
 
@@ -85,8 +81,7 @@ public class RegisterController {
 		String link = frontendUrl + "/confirm?token=" + user.getConfirmationToken();
 		emailService.sendEmail(getSimpleMailMessage(user, link));
 
-		return ResponseEntity.ok(new LinkResponse("A confirmation e-mail has been sent to " + user.getEmail(),
-				demoMode.expose(link)));
+		return ResponseEntity.ok(new LinkResponse("A confirmation e-mail has been sent to " + user.getEmail()));
 	}
 
 	private static SimpleMailMessage getSimpleMailMessage(User user, String link) {

@@ -8,7 +8,7 @@ A hospital appointment platform where **patients** book doctors, **doctors** man
 ![React 18](https://img.shields.io/badge/React-18-61DAFB)
 ![License](https://img.shields.io/badge/license-Apache%202.0-blue)
 
-**Live demo:** <https://e-medical-224w.onrender.com> (free tier, the first visit can take a minute to wake up) · sign in with the [demo accounts](#demo-accounts) · **API docs:** [Swagger UI](https://e-medical-224w.onrender.com/swagger-ui.html)
+**Live:** <https://e-medical-224w.onrender.com> (free tier, the first visit can take a minute to wake up) · register as a patient with your own e-mail · **API docs:** [Swagger UI](https://e-medical-224w.onrender.com/swagger-ui.html)
 
 | Admin console | Patient dashboard |
 | --- | --- |
@@ -65,7 +65,7 @@ In production the React build is packaged inside the Spring Boot jar and served 
 docker compose up --build
 ```
 
-Open <http://localhost:8080>. MySQL runs in a second container, demo accounts are created on first start and the sign-in page lists them.
+Open <http://localhost:8080>. MySQL runs in a second container. Set `ADMIN_EMAIL` and `ADMIN_PASSWORD` in `.env` first; that administrator is created on first start.
 
 ### Option B: from source
 
@@ -84,21 +84,19 @@ npm install
 npm run dev                     # http://localhost:5173, proxies /api to :8080
 ```
 
-Set `SEED_DEMO_DATA=true` in `.env` to get the demo accounts on an empty database.
+### First administrator
 
-### Demo accounts
-
-| Role | E-mail | Password |
-| --- | --- | --- |
-| Administrator | `admin@emedical.demo` | `Demo@Clinic2025` |
-| Doctor | `doctor@emedical.demo` | `Demo@Clinic2025` |
-| Patient | `patient@emedical.demo` | `Demo@Clinic2025` |
+Set `ADMIN_EMAIL` and `ADMIN_PASSWORD` (environment or `.env`). On startup the app creates that administrator if the e-mail has no account yet, and never changes an existing account. The administrator then invites doctors and other admins by e-mail; patients register themselves.
 
 ### E-mail
 
-Registration, staff invitations and password resets send a link by e-mail. Without `MAIL_USERNAME` / `MAIL_PASSWORD` the message is written to the application log instead, link included, so every flow still works offline. For Gmail use an [app password](https://support.google.com/accounts/answer/185833), not your account password.
+Registration, staff invitations, password resets and appointment updates are sent by e-mail, in this order of preference:
 
-**Demo mode** (`DEMO_MODE=true`, on for the hosted demo): sign-up and staff-invite responses also return the e-mailed link, and the UI shows it, so visitors can finish registering without an inbox. The shared `@emedical.demo` accounts can't have their password changed, reset or be disabled, so one visitor can't lock others out. Never enable it where accounts are real.
+1. **Brevo HTTPS API** (`BREVO_API_KEY` and a verified sender in `MAIL_FROM`). Use this on Render's free plan, which blocks outgoing SMTP ports 25, 465 and 587.
+2. **SMTP** (`MAIL_USERNAME` / `MAIL_PASSWORD`, Gmail by default; use an [app password](https://support.google.com/accounts/answer/185833)).
+3. Neither set: the message is written to the application log, link included, so local development works offline.
+
+The startup log says which one is active (`E-mail delivery: brevo | smtp | log-only`).
 
 ## Configuration
 
@@ -113,8 +111,8 @@ All settings come from environment variables (see [`.env.example`](.env.example)
 | `MAIL_USERNAME`, `MAIL_PASSWORD` | SMTP account (Gmail by default) | empty = log only |
 | `FRONTEND_URL` | Base URL used in e-mailed links | `http://localhost:5173` |
 | `CORS_ALLOWED_ORIGINS` | Browser origins allowed to call the API cross-origin | localhost dev ports |
-| `SEED_DEMO_DATA` | Create demo accounts on an empty database | `false` |
-| `DEMO_MODE` | Return e-mailed links in responses and protect demo accounts (public demos only) | `false` |
+| `ADMIN_EMAIL`, `ADMIN_PASSWORD` | First administrator, created on startup if new | empty |
+| `BREVO_API_KEY`, `MAIL_FROM`, `MAIL_FROM_NAME` | E-mail over Brevo's HTTPS API (takes priority over SMTP) | empty, `MAIL_USERNAME`, `E-Medical` |
 | `LOGIN_MAX_FAILURES`, `LOGIN_LOCK_MINUTES` | Sign-in lockout | `5`, `15` |
 | `REMINDERS_ENABLED`, `REMINDERS_CRON`, `APP_TIME_ZONE` | Day-before reminder e-mails | `true`, `0 0 18 * * *`, `Asia/Kolkata` |
 | `PORT` | HTTP port | `8080` |
@@ -162,7 +160,7 @@ Errors are returned as plain text with a matching HTTP status (`400` validation,
 ## Tests
 
 ```bash
-cd bioMedical && ./mvnw test            # 53 backend tests
+cd bioMedical && ./mvnw test            # 54 backend tests
 cd Frontend/medical-frontend && npm test  # 17 frontend tests (Vitest + Testing Library)
 ```
 
@@ -172,7 +170,7 @@ Backend:
 - `HardeningIntegrationTest`: error codes (400/401/403/404), a patient can't be booked twice at once, login lockout, contact form and its rate limit, public stats, OpenAPI docs and security headers.
 - `ConcurrentBookingIntegrationTest`: 20 threads book the same slot at once; exactly one wins.
 - `ScheduleIntegrationTest`, `PrescriptionIntegrationTest`, `NotificationIntegrationTest`, `AdminInsightsIntegrationTest`: working hours and days off, rescheduling, prescriptions and their PDF, who may read them, which e-mail goes to whom, reminders sent once, analytics numbers and server-side search.
-- `DemoModeIntegrationTest` and `LoginAttemptServiceTest`: demo links, protected demo accounts, lockout window with a controllable clock.
+- `AccountSetupIntegrationTest`, `EmailServiceTest` and `LoginAttemptServiceTest`: first-admin creation, retiring the old demo accounts, the Brevo request and its failure handling, lockout window with a controllable clock.
 
 Frontend: the server-side pager, route guarding by role, the role-aware sidebar, the API error and role helpers, and department grouping.
 
@@ -195,7 +193,7 @@ bioMedical/                      Spring Boot API
     entity/       User (all roles) and Appointment
     dto/          request and response bodies with validation
     security/     JWT creation and filter
-    config/       Spring Security, user details, demo data seeder
+    config/       Spring Security, user details, first-admin setup
   src/test/java/                 web-layer and integration tests
 Frontend/medical-frontend/       React app (Vite)
   src/pages/         public pages, booking, auth flows

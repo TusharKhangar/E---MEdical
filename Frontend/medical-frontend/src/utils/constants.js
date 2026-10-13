@@ -54,22 +54,6 @@ export const USER_ROLES = {
 };
 
 // =============================================================================
-// DEMO ACCOUNTS
-// Created by the backend's DemoDataSeeder when SEED_DEMO_DATA=true. Shown on the
-// sign-in page only when VITE_SHOW_DEMO_ACCOUNTS=true.
-// =============================================================================
-export const DEMO_PASSWORD = 'Demo@Clinic2025';
-
-export const DEMO_ACCOUNTS = [
-  { email: 'admin@emedical.demo', password: DEMO_PASSWORD, role: USER_ROLES.ADMIN },
-  { email: 'doctor@emedical.demo', password: DEMO_PASSWORD, role: USER_ROLES.DOCTOR },
-  { email: 'patient@emedical.demo', password: DEMO_PASSWORD, role: USER_ROLES.USER }
-];
-
-// Kept for older imports
-export const DEMO_USERS = DEMO_ACCOUNTS;
-
-// =============================================================================
 // CLINIC HOURS (must match AppointmentServiceImplementation.TIME_SLOTS)
 // =============================================================================
 export const CLINIC_TIME_SLOTS = ['09:00', '10:00', '11:00', '12:00', '14:00', '15:00', '16:00', '17:00'];
@@ -321,7 +305,6 @@ export default {
   API_ENDPOINTS,
   STORAGE_KEYS,
   USER_ROLES,
-  DEMO_USERS,
   APPOINTMENT_STATUS,
   GENDER_OPTIONS,
   ROLE_DISPLAY_NAMES,
