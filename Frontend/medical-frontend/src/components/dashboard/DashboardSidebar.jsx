@@ -1,43 +1,55 @@
 // src/components/dashboard/DashboardSidebar.jsx
-
 import React from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
+import {
+  BarChart3, CalendarClock, CalendarDays, CalendarPlus, Inbox, LayoutDashboard, LogOut, ShieldCheck,
+  Stethoscope, UserCircle, UserPlus, Users, X,
+} from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import Logo from '../common/Logo';
+import DoctorAvatar from '../common/DoctorAvatar';
 
-// Menu entries per role. Every path is a real route under /dashboard.
-const COMMON_TOP = [{ path: '/dashboard', icon: '🏠', label: 'Dashboard' }];
-
+// Menu sections per role. Every path is a real route under /dashboard.
 const MENU_BY_ROLE = {
   ROLE_USER: [
-    { path: '/dashboard/appointments', icon: '📅', label: 'My Appointments' },
-    { path: '/dashboard/make-appointment', icon: '➕', label: 'Book Appointment' }
+    { items: [
+      { path: '/dashboard', Icon: LayoutDashboard, label: 'Dashboard' },
+      { path: '/dashboard/appointments', Icon: CalendarDays, label: 'My Appointments' },
+      { path: '/dashboard/make-appointment', Icon: CalendarPlus, label: 'Book Appointment' },
+    ] },
   ],
   ROLE_DOCTOR: [
-    { path: '/dashboard/appointments', icon: '📅', label: 'My Schedule' },
-    { path: '/dashboard/availability', icon: '🕘', label: 'Working Hours' }
+    { items: [
+      { path: '/dashboard', Icon: LayoutDashboard, label: 'Dashboard' },
+      { path: '/dashboard/appointments', Icon: CalendarDays, label: 'My Schedule' },
+      { path: '/dashboard/availability', Icon: CalendarClock, label: 'Working Hours' },
+    ] },
   ],
   ROLE_ADMIN: [
-    { path: '/dashboard/appointments', icon: '📅', label: 'Appointments' },
-    { path: '/dashboard/analytics', icon: '📊', label: 'Analytics' },
-    { path: '/dashboard/users', icon: '👥', label: 'Patients' },
-    { path: '/dashboard/doctor-details', icon: '👨‍⚕️', label: 'Doctors' },
-    { path: '/dashboard/admin-details', icon: '🛡️', label: 'Administrators' },
-    { path: '/dashboard/add-doctor', icon: '➕', label: 'Add Doctor' },
-    { path: '/dashboard/add-admin', icon: '➕', label: 'Add Admin' },
-    { path: '/dashboard/messages', icon: '✉️', label: 'Messages' }
-  ]
+    { items: [
+      { path: '/dashboard', Icon: LayoutDashboard, label: 'Dashboard' },
+      { path: '/dashboard/appointments', Icon: CalendarDays, label: 'Appointments' },
+      { path: '/dashboard/analytics', Icon: BarChart3, label: 'Analytics' },
+      { path: '/dashboard/messages', Icon: Inbox, label: 'Messages' },
+    ] },
+    { title: 'People', items: [
+      { path: '/dashboard/users', Icon: Users, label: 'Patients' },
+      { path: '/dashboard/doctor-details', Icon: Stethoscope, label: 'Doctors' },
+      { path: '/dashboard/admin-details', Icon: ShieldCheck, label: 'Administrators' },
+      { path: '/dashboard/add-doctor', Icon: UserPlus, label: 'Add Doctor' },
+      { path: '/dashboard/add-admin', Icon: UserPlus, label: 'Add Admin' },
+    ] },
+  ],
 };
 
-const COMMON_BOTTOM = [
-  { path: '/dashboard/my-profile', icon: '👤', label: 'My Profile' }
-];
+const ACCOUNT = { items: [{ path: '/dashboard/my-profile', Icon: UserCircle, label: 'My Profile' }] };
 
-const ROLE_TITLES = {
-  ROLE_ADMIN: 'Admin Console',
-  ROLE_DOCTOR: 'Doctor Portal',
-  ROLE_USER: 'Patient Portal',
-  ROLE_PATIENT: 'Patient Portal'
-};
+const ROLE_NAMES = { ROLE_ADMIN: 'Administrator', ROLE_DOCTOR: 'Doctor', ROLE_USER: 'Patient', ROLE_PATIENT: 'Patient' };
+
+const linkClass = ({ isActive }) =>
+  `flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+    isActive ? 'bg-brand-50 text-brand-800' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+  }`;
 
 /**
  * Always visible from the md breakpoint up. On phones it is an off-canvas drawer: `open` slides it in
@@ -45,12 +57,9 @@ const ROLE_TITLES = {
  */
 const DashboardSidebar = ({ open = false, onClose = () => {} }) => {
   const { user, logout } = useAuth();
-  const location = useLocation();
   const navigate = useNavigate();
-
-  const isActive = (path) => location.pathname === path;
   const roleKey = user?.role === 'ROLE_PATIENT' ? 'ROLE_USER' : user?.role;
-  const items = [...COMMON_TOP, ...(MENU_BY_ROLE[roleKey] || []), ...COMMON_BOTTOM];
+  const sections = [...(MENU_BY_ROLE[roleKey] || []), { title: 'Account', ...ACCOUNT }];
 
   const handleLogout = async () => {
     await logout();
@@ -59,75 +68,55 @@ const DashboardSidebar = ({ open = false, onClose = () => {} }) => {
 
   return (
     <>
-    {/* Backdrop behind the drawer on phones */}
-    {open && (
-      <div className="fixed inset-0 z-30 bg-black/50 md:hidden" onClick={onClose} aria-hidden="true" />
-    )}
-    <aside
-      className={`bg-slate-900 h-screen w-64 flex flex-col text-white fixed left-0 top-0 z-40 transform transition-transform duration-200 md:translate-x-0 ${
-        open ? 'translate-x-0' : '-translate-x-full'
-      }`}
-      aria-label="Dashboard navigation"
-    >
-      {/* Header */}
-      <div className="p-6 border-b border-slate-700 flex-shrink-0 relative">
-        <button
-          type="button"
-          onClick={onClose}
-          className="md:hidden absolute right-4 top-4 rounded-lg px-2 py-1 text-slate-300 hover:bg-slate-800"
-          aria-label="Close menu"
-        >
-          ✕
-        </button>
-        <Link to="/" className="text-lg font-bold">Remedic</Link>
-        <h2 className="text-lg font-semibold">{ROLE_TITLES[user?.role] || 'Medical Dashboard'}</h2>
-        <p className="text-sm text-slate-400"><span>👤</span> {user?.role?.replace('ROLE_', '') || 'User'}</p>
-      </div>
-
-      {/* Navigation */}
-      <nav className="flex-1 px-4 py-6 overflow-y-auto">
-        <ul className="space-y-2">
-          {items.map((item) => (
-            <li key={item.path}>
-              <Link
-                to={item.path}
-                className={`flex items-center px-4 py-2 rounded-lg transition-colors ${
-                  isActive(item.path)
-                    ? 'bg-blue-600 text-white'
-                    : 'text-slate-300 hover:bg-slate-800 hover:text-white'
-                }`}
-              >
-                <span className="text-sm">{item.icon}</span>
-                <span className="ml-3">{item.label}</span>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      </nav>
-
-      {/* Footer */}
-      <div className="p-4 border-t border-slate-700 flex-shrink-0">
-        <div className="flex items-center mb-3">
-          <div className="w-8 h-8 bg-slate-600 rounded-full flex items-center justify-center">
-            <span className="text-sm">👤</span>
-          </div>
-          <div className="ml-3 flex-1 min-w-0">
-            <p className="text-sm font-medium text-white truncate">
-              {user?.firstName ? `${user.firstName} ${user.lastName || ''}` : user?.email || 'User'}
-            </p>
-            <p className="text-xs text-slate-400 truncate">
-              {user?.email}
-            </p>
-          </div>
+      {open && <div className="fixed inset-0 z-30 bg-slate-900/40 md:hidden" onClick={onClose} aria-hidden="true" />}
+      <aside
+        className={`fixed left-0 top-0 z-40 flex h-screen w-64 flex-col border-r border-slate-200 bg-white transition-transform duration-200 md:translate-x-0 ${
+          open ? 'translate-x-0' : '-translate-x-full'
+        }`}
+        aria-label="Dashboard navigation"
+      >
+        <div className="flex h-16 shrink-0 items-center justify-between border-b border-slate-100 px-5">
+          <Logo to="/dashboard" />
+          <button type="button" onClick={onClose} className="btn-ghost px-2 md:hidden" aria-label="Close menu">
+            <X className="h-5 w-5" />
+          </button>
         </div>
-        <button
-          onClick={handleLogout}
-          className="w-full bg-red-600 text-white px-3 py-2 rounded-lg hover:bg-red-700 transition-colors text-sm"
-        >
-          Sign Out
-        </button>
-      </div>
-    </aside>
+
+        <nav className="flex-1 space-y-6 overflow-y-auto px-3 py-5">
+          {sections.map((section, i) => (
+            <div key={section.title || i}>
+              {section.title && (
+                <p className="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-slate-600">{section.title}</p>
+              )}
+              <ul className="space-y-0.5">
+                {section.items.map(({ path, Icon, label }) => (
+                  <li key={path}>
+                    <NavLink to={path} end={path === '/dashboard'} className={linkClass}>
+                      <Icon className="h-4 w-4 shrink-0" strokeWidth={1.75} aria-hidden="true" />
+                      <span>{label}</span>
+                    </NavLink>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </nav>
+
+        <div className="shrink-0 border-t border-slate-100 p-3">
+          <div className="flex items-center gap-3 px-2 py-2">
+            <DoctorAvatar doctor={user} size="h-9 w-9 text-xs" />
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-medium text-slate-900">
+                {user?.firstName ? `${user.firstName} ${user.lastName || ''}` : user?.email}
+              </p>
+              <p className="truncate text-xs text-slate-600">{ROLE_NAMES[user?.role] || 'Signed in'}</p>
+            </div>
+          </div>
+          <button onClick={handleLogout} className="btn-ghost mt-1 w-full justify-start px-3">
+            <LogOut className="h-4 w-4" aria-hidden="true" /> Sign out
+          </button>
+        </div>
+      </aside>
     </>
   );
 };

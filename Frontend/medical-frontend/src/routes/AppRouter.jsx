@@ -10,7 +10,6 @@ import { USER_ROLES } from '../utils/constants';
 import Home from '../pages/Enhanced-Home';
 import About from '../pages/About';
 import Contact from '../pages/Contact';
-import Blog from '../pages/Blog';
 import Login from '../components/auth/Login';
 import Register from '../components/auth/Register';
 import Doctors from '../pages/Doctors';
@@ -41,7 +40,7 @@ import DoctorAvailability from '../components/dashboard/DoctorAvailability';
 
 const LoadingSpinner = () => (
   <div className="flex justify-center items-center min-h-screen">
-    <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-500"></div>
+    <div className="h-8 w-8 animate-spin rounded-full border-2 border-slate-200 border-t-brand-600" aria-label="Loading" />
   </div>
 );
 
@@ -67,7 +66,6 @@ const AppRouter = () => {
         <Route path="/" element={<Home />} />
         <Route path="/about" element={<About />} />
         <Route path="/contact" element={<Contact />} />
-        <Route path="/blog" element={<Blog />} />
         <Route path="/doctors" element={<Doctors />} />
         <Route path="/departments" element={<Departments />} />
         <Route path="/login" element={<Login />} />
