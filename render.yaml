@@ -37,9 +37,11 @@ services:
       - key: SEED_DEMO_DATA
         value: "true"
       - key: FRONTEND_URL
-        value: https://e-medical.onrender.com
+        value: https://e-medical-224w.onrender.com
       - key: CORS_ALLOWED_ORIGINS
-        value: https://e-medical.onrender.com
+        value: https://e-medical-224w.onrender.com
+      - key: VITE_SHOW_DEMO_ACCOUNTS
+        value: "true"
       - key: APP_TIME_ZONE
         value: Asia/Kolkata
       - key: JAVA_OPTS

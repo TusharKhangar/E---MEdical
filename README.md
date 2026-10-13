@@ -8,7 +8,7 @@ A hospital appointment platform where **patients** book doctors, **doctors** man
 ![React 18](https://img.shields.io/badge/React-18-61DAFB)
 ![License](https://img.shields.io/badge/license-Apache%202.0-blue)
 
-**Live demo:** _coming soon_ · **API docs:** `/actuator/health` for status, endpoints listed [below](#api)
+**Live demo:** <https://e-medical-224w.onrender.com> (free tier, the first visit can take a minute to wake up) · sign in with the [demo accounts](#demo-accounts)
 
 | Admin console | Patient dashboard |
 | --- | --- |
