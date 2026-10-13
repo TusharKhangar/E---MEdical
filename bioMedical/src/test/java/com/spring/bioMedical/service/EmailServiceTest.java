@@ -8,6 +8,7 @@ import static org.springframework.test.web.client.match.MockRestRequestMatchers.
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withServerError;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withUnauthorizedRequest;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -69,6 +70,29 @@ class EmailServiceTest {
 		brevo.expect(requestTo("https://api.brevo.com/v3/smtp/email")).andRespond(withServerError());
 		service.sendEmail(message()); // must not throw into the caller
 		brevo.verify();
+	}
+
+	@Test
+	void sendNowSaysWhatBrevoAnswered() {
+		ReflectionTestUtils.setField(service, "brevoApiKey", "test-key");
+		brevo.expect(requestTo("https://api.brevo.com/v3/smtp/email"))
+				.andRespond(withUnauthorizedRequest().body("{\"message\":\"Key not found\"}").contentType(MediaType.APPLICATION_JSON));
+		assertThat(service.sendNow(message())).hasValueSatisfying(error -> {
+			assertThat(error).contains("401");
+			assertThat(error).contains("Key not found");
+		});
+		brevo.verify();
+	}
+
+	@Test
+	void sendNowIsEmptyWhenSentAndExplainsWhenNotConfigured() {
+		assertThat(service.sendNow(message())).hasValueSatisfying(error -> assertThat(error).contains("BREVO_API_KEY"));
+		assertThat(service.describe()).contains("Not configured");
+
+		ReflectionTestUtils.setField(service, "brevoApiKey", "test-key");
+		brevo.expect(requestTo("https://api.brevo.com/v3/smtp/email")).andRespond(withSuccess());
+		assertThat(service.sendNow(message())).isEmpty();
+		assertThat(service.describe()).contains("Brevo").contains("clinic@example.com");
 	}
 
 	private static SimpleMailMessage message() {

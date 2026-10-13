@@ -3,6 +3,7 @@ package com.spring.bioMedical.service;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,6 +18,7 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
+import org.springframework.web.client.RestClientResponseException;
 
 /**
  * Sends the app's e-mails, in this order of preference:
@@ -67,17 +69,41 @@ public class EmailService {
 		return "log-only";
 	}
 
+	/** A sentence for the admin dashboard: where e-mail goes and from which address. */
+	public String describe() {
+		return switch (mode()) {
+			case "brevo" -> "Brevo (HTTPS API), sending as " + fromAddress;
+			case "smtp" -> "SMTP, sending as " + (isBlank(fromAddress) ? smtpUsername : fromAddress);
+			default -> "Not configured: e-mails are only written to the server log";
+		};
+	}
+
 	@Async
 	public void sendEmail(SimpleMailMessage email) {
-		switch (mode()) {
-			case "brevo" -> sendWithBrevo(email);
-			case "smtp" -> sendWithSmtp(email);
-			default -> logger.warn("E-mail is not configured (set BREVO_API_KEY, or MAIL_USERNAME and MAIL_PASSWORD). "
-					+ "Message to {} not sent:\n{}", (Object) email.getTo(), email.getText());
+		Optional<String> error = sendNow(email);
+		// In log-only mode sendNow has already logged the whole message, link included
+		if (error.isPresent() && !"log-only".equals(mode())) {
+			logger.error("E-mail to {} not sent: {}", (Object) email.getTo(), error.get());
 		}
 	}
 
-	private void sendWithBrevo(SimpleMailMessage email) {
+	/**
+	 * Sends on the calling thread and says what went wrong, if anything (empty means sent). Used by the
+	 * admin's "send me a test e-mail" button, which needs the answer straight away.
+	 */
+	public Optional<String> sendNow(SimpleMailMessage email) {
+		return switch (mode()) {
+			case "brevo" -> sendWithBrevo(email);
+			case "smtp" -> sendWithSmtp(email);
+			default -> {
+				logger.warn("E-mail is not configured (set BREVO_API_KEY, or MAIL_USERNAME and MAIL_PASSWORD). "
+						+ "Message to {} not sent:\n{}", (Object) email.getTo(), email.getText());
+				yield Optional.of("E-mail is not configured. Set BREVO_API_KEY and MAIL_FROM (or MAIL_USERNAME and MAIL_PASSWORD).");
+			}
+		};
+	}
+
+	private Optional<String> sendWithBrevo(SimpleMailMessage email) {
 		List<Map<String, String>> to = Arrays.stream(email.getTo()).map(address -> Map.of("email", address)).toList();
 		Map<String, Object> body = Map.of(
 				"sender", Map.of("email", fromAddress, "name", fromName),
@@ -93,18 +119,23 @@ public class EmailService {
 					.retrieve()
 					.toBodilessEntity();
 			logger.info("Email sent via Brevo to: {}", (Object) email.getTo());
+			return Optional.empty();
+		} catch (RestClientResponseException e) {
+			// Brevo answers with a JSON body that says why (bad key, unverified sender, ...)
+			return Optional.of("Brevo refused the message (" + e.getStatusCode().value() + "): " + e.getResponseBodyAsString());
 		} catch (RestClientException e) {
-			logger.error("Failed to send email via Brevo to: {}: {}", email.getTo(), e.getMessage());
+			return Optional.of("Could not reach Brevo: " + e.getMessage());
 		}
 	}
 
-	private void sendWithSmtp(SimpleMailMessage email) {
+	private Optional<String> sendWithSmtp(SimpleMailMessage email) {
 		email.setFrom(isBlank(fromAddress) ? smtpUsername : fromAddress);
 		try {
 			mailSender.send(email);
 			logger.info("Email sent via SMTP to: {}", (Object) email.getTo());
+			return Optional.empty();
 		} catch (MailException e) {
-			logger.error("Failed to send email via SMTP to: {}", email.getTo(), e);
+			return Optional.of("The SMTP server refused the message: " + e.getMessage());
 		}
 	}
 
