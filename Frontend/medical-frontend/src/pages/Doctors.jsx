@@ -41,6 +41,7 @@ const Doctors = () => {
             Our Doctors
           </motion.h1>
           <select
+            aria-label="Filter by department"
             value={department}
             onChange={(e) => setDepartment(e.target.value)}
             className="px-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-700"
