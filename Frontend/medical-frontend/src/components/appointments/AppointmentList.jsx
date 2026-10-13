@@ -1,161 +1,110 @@
 // src/components/appointments/AppointmentList.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
 import {
   CalendarDaysIcon,
-  EyeIcon,
   CheckCircleIcon,
   XCircleIcon,
   ClockIcon,
-  UserIcon
+  UserIcon,
+  CheckBadgeIcon
 } from '@heroicons/react/24/outline';
 import DataTable from '../common/DataTable';
+import StatusBadge from '../common/StatusBadge';
+import { getAppointmentsForRole, setAppointmentStatusForRole, errorMessage } from '../../services/medicalService';
 
 const AppointmentList = () => {
-  const { user, isPatient, isDoctor, isAdmin } = useAuth();
+  const { user, isPatient } = useAuth();
   const [appointments, setAppointments] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
+  const [busyId, setBusyId] = useState(null);
+
+  const fetchAppointments = useCallback(async () => {
+    try {
+      setAppointments(await getAppointmentsForRole(user?.role));
+    } catch (error) {
+      toast.error(errorMessage(error, 'Could not load appointments'));
+    } finally {
+      setLoading(false);
+    }
+  }, [user?.role]);
 
   useEffect(() => {
     fetchAppointments();
-  }, [filter]);
+  }, [fetchAppointments]);
 
-  const fetchAppointments = async () => {
-    setLoading(true);
-
-    // Mock data based on user role
-    setTimeout(() => {
-      const mockAppointments = [
-        {
-          id: 1,
-          patientName: 'John Doe',
-          doctorName: 'Dr. Smith',
-          email: 'john.doe@example.com',
-          date: '2024-03-20',
-          time: '10:00 AM',
-          department: 'Cardiology',
-          status: 'PENDING',
-          reason: 'Regular checkup',
-          phone: '+1-234-567-8901'
-        },
-        {
-          id: 2,
-          patientName: 'Jane Smith',
-          doctorName: 'Dr. Johnson',
-          email: 'jane.smith@example.com',
-          date: '2024-03-21',
-          time: '2:30 PM',
-          department: 'Neurology',
-          status: 'CONFIRMED',
-          reason: 'Follow-up consultation',
-          phone: '+1-234-567-8902'
-        },
-        {
-          id: 3,
-          patientName: 'Mike Wilson',
-          doctorName: 'Dr. Brown',
-          email: 'mike.wilson@example.com',
-          date: '2024-03-19',
-          time: '9:00 AM',
-          department: 'General',
-          status: 'COMPLETED',
-          reason: 'Annual physical',
-          phone: '+1-234-567-8903'
-        },
-        {
-          id: 4,
-          patientName: 'Sarah Davis',
-          doctorName: 'Dr. Garcia',
-          email: 'sarah.davis@example.com',
-          date: '2024-03-18',
-          time: '11:30 AM',
-          department: 'Pediatrics',
-          status: 'CANCELLED',
-          reason: 'Vaccination',
-          phone: '+1-234-567-8904'
-        }
-      ];
-
-      // Filter based on current filter
-      let filteredAppointments = mockAppointments;
-      if (filter !== 'all') {
-        filteredAppointments = mockAppointments.filter(apt => apt.status === filter.toUpperCase());
-      }
-
-      setAppointments(filteredAppointments);
-      setLoading(false);
-    }, 500);
+  const statusCounts = {
+    all: appointments.length,
+    pending: appointments.filter(apt => apt.status === 'PENDING').length,
+    confirmed: appointments.filter(apt => apt.status === 'CONFIRMED').length,
+    completed: appointments.filter(apt => apt.status === 'COMPLETED').length,
+    cancelled: appointments.filter(apt => apt.status === 'CANCELLED').length
   };
 
-  const getStatusCounts = () => {
-    return {
-      all: appointments.length,
-      pending: appointments.filter(apt => apt.status === 'PENDING').length,
-      confirmed: appointments.filter(apt => apt.status === 'CONFIRMED').length,
-      completed: appointments.filter(apt => apt.status === 'COMPLETED').length,
-      cancelled: appointments.filter(apt => apt.status === 'CANCELLED').length
-    };
+  const visible = filter === 'all'
+    ? appointments
+    : appointments.filter(apt => apt.status === filter.toUpperCase());
+
+  const handleStatusChange = async (appointmentId, newStatus) => {
+    if (newStatus === 'CANCELLED' && !window.confirm('Cancel this appointment?')) return;
+    setBusyId(appointmentId);
+    try {
+      const updated = await setAppointmentStatusForRole(user?.role, appointmentId, newStatus);
+      setAppointments(prev => prev.map(apt => (apt.id === appointmentId ? updated : apt)));
+      toast.success(`Appointment ${updated.status.toLowerCase()}`);
+    } catch (error) {
+      toast.error(errorMessage(error, 'Could not update the appointment'));
+    } finally {
+      setBusyId(null);
+    }
   };
 
-  const statusCounts = getStatusCounts();
-
-  const handleStatusChange = (appointmentId, newStatus) => {
-    setAppointments(prev => prev.map(apt =>
-      apt.id === appointmentId ? { ...apt, status: newStatus } : apt
-    ));
-  };
+  const actionButton = (row, status, Icon, title, colour) => (
+    <button
+      onClick={() => handleStatusChange(row.id, status)}
+      disabled={busyId === row.id}
+      className={`${colour} p-1 rounded disabled:opacity-40`}
+      title={title}
+    >
+      <Icon className="h-5 w-5" />
+    </button>
+  );
 
   const columns = [
-    { key: 'id', title: 'ID' },
-    { key: 'patientName', title: 'Patient' },
-    { key: 'doctorName', title: 'Doctor' },
     { key: 'date', title: 'Date' },
     { key: 'time', title: 'Time' },
+    ...(isPatient()
+      ? [{ key: 'doctorName', title: 'Doctor' }]
+      : [{ key: 'name', title: 'Patient' }, { key: 'email', title: 'Email' }]),
+    ...(user?.role === 'ROLE_ADMIN' ? [{ key: 'doctorName', title: 'Doctor' }] : []),
     { key: 'department', title: 'Department' },
-    { key: 'reason', title: 'Reason' },
+    { key: 'description', title: 'Reason' },
     {
       key: 'status',
       title: 'Status',
-      render: (value) => (
-        <span className={`px-3 py-1 text-xs font-medium rounded-full ${
-          value === 'PENDING' ? 'bg-yellow-100 text-yellow-800' :
-          value === 'CONFIRMED' ? 'bg-blue-100 text-blue-800' :
-          value === 'COMPLETED' ? 'bg-green-100 text-green-800' :
-          'bg-red-100 text-red-800'
-        }`}>
-          {value}
-        </span>
-      )
+      render: (value) => <StatusBadge status={value} />
     },
     {
       key: 'actions',
       title: 'Actions',
       render: (_, row) => (
         <div className="flex space-x-2">
-          <button
-            className="text-blue-600 hover:text-blue-800 p-1 rounded hover:bg-blue-50"
-            title="View Details"
-          >
-            <EyeIcon className="h-4 w-4" />
-          </button>
+          {isPatient() && (row.status === 'PENDING' || row.status === 'CONFIRMED') &&
+            actionButton(row, 'CANCELLED', XCircleIcon, 'Cancel', 'text-red-600 hover:bg-red-50')}
           {!isPatient() && row.status === 'PENDING' && (
             <>
-              <button
-                onClick={() => handleStatusChange(row.id, 'CONFIRMED')}
-                className="text-green-600 hover:text-green-800 p-1 rounded hover:bg-green-50"
-                title="Confirm"
-              >
-                <CheckCircleIcon className="h-4 w-4" />
-              </button>
-              <button
-                onClick={() => handleStatusChange(row.id, 'CANCELLED')}
-                className="text-red-600 hover:text-red-800 p-1 rounded hover:bg-red-50"
-                title="Cancel"
-              >
-                <XCircleIcon className="h-4 w-4" />
-              </button>
+              {actionButton(row, 'CONFIRMED', CheckCircleIcon, 'Confirm', 'text-green-600 hover:bg-green-50')}
+              {actionButton(row, 'CANCELLED', XCircleIcon, 'Cancel', 'text-red-600 hover:bg-red-50')}
+            </>
+          )}
+          {!isPatient() && row.status === 'CONFIRMED' && (
+            <>
+              {actionButton(row, 'COMPLETED', CheckBadgeIcon, 'Mark completed', 'text-blue-600 hover:bg-blue-50')}
+              {actionButton(row, 'CANCELLED', XCircleIcon, 'Cancel', 'text-red-600 hover:bg-red-50')}
             </>
           )}
         </div>
@@ -195,14 +144,14 @@ const AppointmentList = () => {
                 {isPatient() ? 'My Appointments' : 'Appointment Management'}
               </h1>
               <p className="text-gray-600">
-                {isPatient() ? 'View and manage your appointments' : 'Manage patient appointments'}
+                {isPatient() ? 'View and manage your appointments' : 'Confirm, complete or cancel patient appointments'}
               </p>
             </div>
           </div>
           {isPatient() && (
-            <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+            <Link to="/dashboard/make-appointment" className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
               Book New Appointment
-            </button>
+            </Link>
           )}
         </div>
 
@@ -231,43 +180,23 @@ const AppointmentList = () => {
         </div>
 
         {/* Statistics Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-          <div className="bg-blue-50 rounded-lg p-4">
-            <div className="flex items-center">
-              <CalendarDaysIcon className="h-8 w-8 text-blue-600 mr-3" />
-              <div>
-                <p className="text-sm font-medium text-blue-600">Total</p>
-                <p className="text-2xl font-bold text-blue-900">{statusCounts.all}</p>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          {[
+            { label: 'Total', value: statusCounts.all, Icon: CalendarDaysIcon, colour: 'blue' },
+            { label: 'Pending', value: statusCounts.pending, Icon: ClockIcon, colour: 'yellow' },
+            { label: 'Confirmed', value: statusCounts.confirmed, Icon: UserIcon, colour: 'blue' },
+            { label: 'Completed', value: statusCounts.completed, Icon: CheckCircleIcon, colour: 'green' }
+          ].map(({ label, value, Icon, colour }) => (
+            <div key={label} className={`bg-${colour}-50 rounded-lg p-4`}>
+              <div className="flex items-center">
+                <Icon className={`h-8 w-8 text-${colour}-600 mr-3`} />
+                <div>
+                  <p className={`text-sm font-medium text-${colour}-600`}>{label}</p>
+                  <p className={`text-2xl font-bold text-${colour}-900`}>{value}</p>
+                </div>
               </div>
             </div>
-          </div>
-          <div className="bg-yellow-50 rounded-lg p-4">
-            <div className="flex items-center">
-              <ClockIcon className="h-8 w-8 text-yellow-600 mr-3" />
-              <div>
-                <p className="text-sm font-medium text-yellow-600">Pending</p>
-                <p className="text-2xl font-bold text-yellow-900">{statusCounts.pending}</p>
-              </div>
-            </div>
-          </div>
-          <div className="bg-green-50 rounded-lg p-4">
-            <div className="flex items-center">
-              <CheckCircleIcon className="h-8 w-8 text-green-600 mr-3" />
-              <div>
-                <p className="text-sm font-medium text-green-600">Completed</p>
-                <p className="text-2xl font-bold text-green-900">{statusCounts.completed}</p>
-              </div>
-            </div>
-          </div>
-          <div className="bg-blue-50 rounded-lg p-4">
-            <div className="flex items-center">
-              <UserIcon className="h-8 w-8 text-blue-600 mr-3" />
-              <div>
-                <p className="text-sm font-medium text-blue-600">Confirmed</p>
-                <p className="text-2xl font-bold text-blue-900">{statusCounts.confirmed}</p>
-              </div>
-            </div>
-          </div>
+          ))}
         </div>
       </motion.div>
 
@@ -278,12 +207,19 @@ const AppointmentList = () => {
         transition={{ delay: 0.2 }}
         className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden"
       >
-        <DataTable
-          data={appointments}
-          columns={columns}
-          title=""
-          searchable={true}
-        />
+        {visible.length === 0 ? (
+          <div className="p-12 text-center text-gray-500">
+            <div className="text-4xl mb-3">📅</div>
+            No {filter === 'all' ? '' : filter} appointments yet.
+          </div>
+        ) : (
+          <DataTable
+            data={visible}
+            columns={columns}
+            title=""
+            searchable={true}
+          />
+        )}
       </motion.div>
     </div>
   );

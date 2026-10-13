@@ -10,23 +10,20 @@ import {
   UserIcon,
   PhoneIcon 
 } from '@heroicons/react/24/outline';
-import toast from 'react-hot-toast';
 
 const Register = () => {
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
     email: '',
-    password: '',
-    confirmPassword: '',
     phoneNumber: '',
     gender: '',
     role: 'ROLE_USER'
   });
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  // const [showPassword, setShowPassword] = useState(false);
+  // const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [passwordStrength, setPasswordStrength] = useState(0);
+  // const [passwordStrength, setPasswordStrength] = useState(0);
   
   const { register } = useAuth();
   const navigate = useNavigate();
@@ -39,45 +36,15 @@ const Register = () => {
     }));
 
     // Check password strength
+/*
     if (name === 'password') {
       checkPasswordStrength(value);
     }
+*/
   };
 
-  const checkPasswordStrength = (password) => {
-    let strength = 0;
-    if (password.length >= 8) strength += 1;
-    if (/[a-z]/.test(password)) strength += 1;
-    if (/[A-Z]/.test(password)) strength += 1;
-    if (/[0-9]/.test(password)) strength += 1;
-    if (/[^A-Za-z0-9]/.test(password)) strength += 1;
-    setPasswordStrength(strength);
-  };
 
-  const getPasswordStrengthColor = () => {
-    switch (passwordStrength) {
-      case 0:
-      case 1: return 'bg-red-500';
-      case 2: return 'bg-orange-500';
-      case 3: return 'bg-yellow-500';
-      case 4: return 'bg-blue-500';
-      case 5: return 'bg-green-500';
-      default: return 'bg-gray-200';
-    }
-  };
-
-  const getPasswordStrengthText = () => {
-    switch (passwordStrength) {
-      case 0:
-      case 1: return 'Very Weak';
-      case 2: return 'Weak';
-      case 3: return 'Fair';
-      case 4: return 'Strong';
-      case 5: return 'Very Strong';
-      default: return '';
-    }
-  };
-
+/*
   const validateForm = () => {
     if (formData.password !== formData.confirmPassword) {
       toast.error('Passwords do not match');
@@ -89,13 +56,14 @@ const Register = () => {
     }
     return true;
   };
+*/
 
   // In handleSubmit function, uncomment and include all fields:
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!validateForm()) return;
+    // if (!validateForm()) return;
 
     setIsLoading(true);
 
@@ -104,7 +72,7 @@ const Register = () => {
         firstName: formData.firstName,
         lastName: formData.lastName,
         email: formData.email,
-        password: formData.password,
+        // password: formData.password,
         phoneNumber: formData.phoneNumber,
         gender: formData.gender,
         role: formData.role
@@ -224,7 +192,10 @@ const Register = () => {
                   name="phoneNumber"
                   value={formData.phoneNumber}
                   onChange={handleChange}
-                  placeholder="Phone Number"
+                  placeholder="Phone Number (10 digits)"
+                  pattern="[1-9][0-9]{9}"
+                  title="A 10-digit phone number"
+                  required
                   className="w-full px-4 py-3 pl-12 border border-gray-200 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent transition duration-300 bg-gray-50 text-slate-900 placeholder:text-gray-400"
                 />
                 <PhoneIcon className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
@@ -251,6 +222,7 @@ const Register = () => {
           </div>
 
           {/* Password Fields */}
+{/*
           <motion.div
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
@@ -275,13 +247,13 @@ const Register = () => {
                 {showPassword ? <EyeSlashIcon className="h-5 w-5" /> : <EyeIcon className="h-5 w-5" />}
               </button>
             </div>
-            
-            {/* Password Strength Indicator */}
+
+             Password Strength Indicator
             {formData.password && (
               <div className="mt-2">
                 <div className="flex items-center space-x-2">
                   <div className="flex-1 bg-gray-200 rounded-full h-2">
-                    <div 
+                    <div
                       className={`h-2 rounded-full transition-all duration-300 ${getPasswordStrengthColor()}`}
                       style={{ width: `${(passwordStrength / 5) * 100}%` }}
                     ></div>
@@ -291,49 +263,12 @@ const Register = () => {
               </div>
             )}
           </motion.div>
+*/}
 
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.7 }}
-          >
-            <div className="relative">
-              <input
-                type={showConfirmPassword ? 'text' : 'password'}
-                name="confirmPassword"
-                value={formData.confirmPassword}
-                onChange={handleChange}
-                placeholder="Confirm Password"
-                className="w-full px-4 py-3 pl-12 pr-12 border border-gray-200 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent transition duration-300 bg-gray-50 text-slate-900 placeholder:text-gray-400"
-                required
-              />
-              <LockClosedIcon className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-              <button
-                type="button"
-                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-              >
-                {showConfirmPassword ? <EyeSlashIcon className="h-5 w-5" /> : <EyeIcon className="h-5 w-5" />}
-              </button>
-            </div>
-          </motion.div>
-
-          {/* Role Selection */}
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.8 }}
-          >
-            <select
-              name="role"
-              value={formData.role}
-              onChange={handleChange}
-              className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent transition duration-300 bg-gray-50 text-slate-900 placeholder:text-gray-400"
-            >
-              <option value="ROLE_USER">Patient</option>
-              <option value="ROLE_DOCTOR">Doctor</option>
-            </select>
-          </motion.div>
+          {/* Self-registration is for patients; doctors and admins are added by an administrator */}
+          <p className="text-xs text-gray-500">
+            You will receive an e-mail with a link to choose your password.
+          </p>
 
           {/* Register Button */}
           <motion.button

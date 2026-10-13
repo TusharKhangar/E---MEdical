@@ -9,7 +9,6 @@ const EmailConfirmation = () => {
   const [searchParams] = useSearchParams();
   const [status, setStatus] = useState('verifying'); // 'verifying', 'success', 'error'
   const [message, setMessage] = useState('');
-  const [token, setToken] = useState('');
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -21,28 +20,27 @@ const EmailConfirmation = () => {
       return;
     }
 
-    setToken(urlToken);
-    confirmEmail(urlToken);
-  }, [searchParams]);
+    const confirmEmail = async (confirmationToken) => {
+      try {
+        // Checks the token exists; the password is chosen on the next page
+        const response = await api.get(`/confirm?token=${confirmationToken}`);
 
-  const confirmEmail = async (confirmationToken) => {
-    try {
-      // Call your Spring Boot confirmation endpoint
-      const response = await api.get(`/confirm?token=${confirmationToken}`);
-
-      if (response.status === 200) {
-        setStatus('success');
-        setMessage('Email confirmed successfully! You can now set your password.');
-        // Redirect to password setup after 2 seconds
-        setTimeout(() => {
-          navigate(`/set-password?token=${confirmationToken}`);
-        }, 2000);
+        if (response.status === 200) {
+          setStatus('success');
+          setMessage('Email confirmed successfully! You can now set your password.');
+          // Redirect to password setup after 2 seconds
+          setTimeout(() => {
+            navigate(`/set-password?token=${confirmationToken}`);
+          }, 2000);
+        }
+      } catch (error) {
+        setStatus('error');
+        setMessage(error.response?.data?.message || 'Invalid or expired confirmation link.');
       }
-    } catch (error) {
-      setStatus('error');
-      setMessage(error.response?.data?.message || 'Invalid or expired confirmation link.');
-    }
-  };
+    };
+
+    confirmEmail(urlToken);
+  }, [searchParams, navigate]);
 
   const getStatusIcon = () => {
     switch (status) {

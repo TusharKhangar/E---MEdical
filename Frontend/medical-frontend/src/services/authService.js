@@ -1,51 +1,29 @@
 // src/services/authService.js
 
 import api from './api';
-import { API_ENDPOINTS, STORAGE_KEYS, DEMO_USERS } from '../utils/constants';
+import { STORAGE_KEYS } from '../utils/constants';
+import { medicalService, errorMessage } from './medicalService';
 import toast from 'react-hot-toast';
-
-// Set to false to use real backend
-const DEMO_MODE = false;
 
 class AuthService {
   // =============================================================================
   // AUTHENTICATION METHODS
   // =============================================================================
 
-  // Register user
+  // Register a patient. The password is chosen later from the link in the confirmation e-mail.
   async register(userData) {
     try {
-      if (DEMO_MODE) {
-        // Demo registration logic
-        const newUser = {
-          id: Math.floor(Math.random() * 1000),
-          ...userData,
-          role: 'ROLE_PATIENT',
-          fullName: `${userData.firstName} ${userData.lastName}`
-        };
-
-        toast.success('Registration successful! Please login.');
-        return { success: true, user: newUser };
-      } else {
-        // Real API call - Transform data to match backend expectations
-        const backendData = {
-          email: userData.email,
-          firstName: userData.firstName,
-          lastName: userData.lastName,
-          gender: userData.gender,
-          phoneNumber: userData.phoneNumber,
-          password: userData.password,
-          role: userData.role || 'ROLE_USER'
-        };
-
-        // Make API call to your backend
-        const response = await api.post('/register', backendData);
-
-        toast.success('Registration successful! Please check your email to verify your account.');
-        return { success: true, user: response.data };
-      }
+      const response = await api.post('/register', {
+        email: userData.email,
+        firstName: userData.firstName,
+        lastName: userData.lastName,
+        gender: userData.gender,
+        phoneNumber: userData.phoneNumber
+      });
+      toast.success(response.data || 'Registration successful! Please check your email.');
+      return { success: true, message: response.data };
     } catch (error) {
-      const message = error.response?.data?.message || 'Registration failed';
+      const message = errorMessage(error, 'Registration failed');
       toast.error(message);
       return { success: false, message };
     }
@@ -54,80 +32,30 @@ class AuthService {
   // Login user
   async login(email, password) {
     try {
-      if (DEMO_MODE) {
-        // Demo login logic
-        const user = DEMO_USERS.find(u => u.email === email && u.password === password);
-        if (user) {
-          const userData = {
-            id: Math.floor(Math.random() * 1000),
-            email: user.email,
-            firstName: user.firstName,
-            lastName: user.lastName,
-            role: user.role,
-            fullName: `${user.firstName} ${user.lastName}`
-          };
+      // Spring Security expects a 'username' field; we sign in with the e-mail
+      const response = await api.post('/login', { username: email, password });
+      const { jwt, ...profile } = response.data;
 
-          const token = `demo-token-${Date.now()}`;
+      // The backend returns id, email, firstName, lastName and role next to the token
+      const userData = {
+        ...profile,
+        fullName: `${profile.firstName || ''} ${profile.lastName || ''}`.trim()
+      };
 
-          // Store in localStorage
-          localStorage.setItem(STORAGE_KEYS.TOKEN, token);
-          localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(userData));
+      localStorage.setItem(STORAGE_KEYS.TOKEN, jwt);
+      localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(userData));
 
-          toast.success('Login successful!');
-          return { success: true, user: userData, token };
-        } else {
-          toast.error('Invalid credentials');
-          return { success: false, message: 'Invalid credentials' };
-        }
-      } else {
-        // Real API call - Send username as email to match Spring Security expectation
-        const response = await api.post('/login', {
-          username: email, // Spring Security expects 'username' field
-          password: password
-        });
-
-        // Your backend returns { jwt: "token_here" }
-        const { jwt } = response.data;
-
-        // Create basic user object - you may want to fetch full user details
-        const userData = {
-          email: email,
-          // You can add a separate API call here to get full user details
-          // const userDetails = await api.get('/user/profile');
-        };
-
-        // Store in localStorage
-        localStorage.setItem(STORAGE_KEYS.TOKEN, jwt);
-        localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(userData));
-
-        toast.success('Login successful!');
-        return { success: true, user: userData, token: jwt };
-      }
+      toast.success('Login successful!');
+      return { success: true, user: userData, token: jwt };
     } catch (error) {
-      // Handle 401 Unauthorized from your backend
-      if (error.response?.status === 401) {
-        toast.error('Invalid email or password');
-      } else {
-        const message = error.response?.data?.message || 'Login failed';
-        toast.error(message);
-      }
-      return { success: false, message: 'Login failed' };
+      const message = errorMessage(error, 'Login failed');
+      toast.error(message);
+      return { success: false, message };
     }
   }
 
-  // Logout user
+  // Logout user. Tokens are stateless, so there is nothing to tell the server.
   async logout() {
-    try {
-      if (!DEMO_MODE) {
-        // Make logout API call if your backend requires it
-        await api.post(API_ENDPOINTS.LOGOUT);
-      }
-    } catch (error) {
-      // Continue with logout even if API call fails
-      console.error('Logout API error:', error);
-    }
-
-    // Clear localStorage
     this.clearStorage();
     toast.success('Logout successful');
     return { success: true };
@@ -167,28 +95,20 @@ class AuthService {
     return !!(token && user);
   }
 
-  // Update user profile
+  // Update user profile (name, phone, gender, and specialization for doctors)
   async updateProfile(userData) {
     try {
-      if (DEMO_MODE) {
-        // Demo update logic
-        const currentUser = this.getCurrentUser();
-        const updatedUser = { ...currentUser, ...userData };
-
-        localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(updatedUser));
-        toast.success('Profile updated successfully!');
-        return { success: true, user: updatedUser };
-      } else {
-        // Real API call
-        const response = await api.put(API_ENDPOINTS.PROFILE, userData);
-        const { user } = response.data;
-
-        localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(user));
-        toast.success('Profile updated successfully!');
-        return { success: true, user };
-      }
+      const profile = await medicalService.updateProfile(userData);
+      const user = {
+        ...this.getCurrentUser(),
+        ...profile,
+        fullName: `${profile.firstName || ''} ${profile.lastName || ''}`.trim()
+      };
+      localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(user));
+      toast.success('Profile updated successfully!');
+      return { success: true, user };
     } catch (error) {
-      const message = error.response?.data?.message || 'Profile update failed';
+      const message = errorMessage(error, 'Profile update failed');
       toast.error(message);
       return { success: false, message };
     }
@@ -263,12 +183,11 @@ class AuthService {
     return 'Guest';
   }
 
-  // Get user details after login if needed
+  // Refresh the stored user from the server
   async getUserDetails() {
     try {
-      const response = await api.get('/user/profile'); // Adjust endpoint as needed
-      const user = response.data;
-
+      const profile = await medicalService.getProfile();
+      const user = { ...this.getCurrentUser(), ...profile };
       localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(user));
       return { success: true, user };
     } catch (error) {

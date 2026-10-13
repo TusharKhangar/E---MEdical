@@ -1,11 +1,14 @@
 package com.spring.bioMedical.service;
 
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
-import com.spring.bioMedical.entity.Admin;
+import com.spring.bioMedical.entity.User;
+import com.spring.bioMedical.exception.ApiException;
 import com.spring.bioMedical.repository.AdminRepository;
 
 
@@ -22,33 +25,46 @@ public class AdminServiceImplementation implements AdminService {
 	}
 	
 	@Override
-	public List<Admin> findAll() {
+	public List<User> findAll() {
 		return adminRepository.findAll();
 	}
 
 	@Override
-	public void save(Admin admin)
+	public void save(User admin)
 	{
 		
 		adminRepository.save(admin);
 	}
 
 	@Override
-	public void delete(Admin admin) {
+	public void delete(User admin) {
 		adminRepository.delete(admin);
 	}
 
 	@Override
-	public Admin findByEmail(String user) {
+	public User findByEmail(String user) {
 
 		return adminRepository.findByEmail(user);
 		
 	}
 
 	@Override
-	public List<Admin> findByRole(String user) {
+	public List<User> findByRole(String user) {
 		return adminRepository.findByRole(user);
 	}
 
+	public Optional<User> findById(Long id) {
+		return adminRepository.findById(id);
+	}
 
+	/** An enabled doctor, or a 404 if the id is not one. */
+	public User findDoctorById(Long id) {
+		return adminRepository.findById(id)
+				.filter(u -> "ROLE_DOCTOR".equals(u.getRole()) && u.getEnabled())
+				.orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Doctor not found"));
+	}
+
+	public long countByRole(String role) {
+		return adminRepository.countByRole(role);
+	}
 }

@@ -1,0 +1,47 @@
+# Full stack in two containers: the app (API + React UI) and MySQL.
+#
+#   docker compose up --build
+#   open http://localhost:8080
+#
+# Demo accounts are created on first start (SEED_DEMO_DATA=true); see the README for the logins.
+# E-mail is optional: without MAIL_USERNAME/MAIL_PASSWORD, confirmation links are printed in the app logs.
+
+services:
+  db:
+    image: mysql:8.0
+    environment:
+      MYSQL_DATABASE: userauth
+      MYSQL_USER: emedical
+      MYSQL_PASSWORD: emedical
+      MYSQL_ROOT_PASSWORD: root
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uemedical", "-pemedical"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build:
+      context: .
+      args:
+        VITE_SHOW_DEMO_ACCOUNTS: "true"
+    ports:
+      - "8080:8080"
+    environment:
+      DB_URL: jdbc:mysql://db:3306/userauth
+      DB_USERNAME: emedical
+      DB_PASSWORD: emedical
+      JWT_SECRET: ${JWT_SECRET:-Zm9yLWxvY2FsLWRvY2tlci1vbmx5LWNoYW5nZS1tZS1pbi1wcm9kdWN0aW9uIQ==}
+      SEED_DEMO_DATA: "true"
+      FRONTEND_URL: http://localhost:8080
+      CORS_ALLOWED_ORIGINS: http://localhost:8080
+      MAIL_USERNAME: ${MAIL_USERNAME:-}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  mysql-data:

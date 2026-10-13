@@ -36,22 +36,10 @@ const ProtectedRoute = ({
       : true;
 
     if (!hasAccess) {
-      // Redirect based on user role to their appropriate dashboard/page
-      const roleBasedRedirect = () => {
-        switch (user.role) {
-          case USER_ROLES.ADMIN:
-            return '/dashboard';
-          case USER_ROLES.DOCTOR:
-            return '/doctor-dashboard';
-          case USER_ROLES.PATIENT:
-          case USER_ROLES.USER:
-            return '/patient-dashboard';
-          default:
-            return '/';
-        }
-      };
-
-      return <Navigate to={roleBasedRedirect()} replace />;
+      // Every role has its own home inside /dashboard; anyone else goes to the landing page
+      const knownRole = [USER_ROLES.ADMIN, USER_ROLES.DOCTOR, USER_ROLES.PATIENT, USER_ROLES.USER]
+        .includes(user.role);
+      return <Navigate to={knownRole ? '/dashboard' : '/'} replace />;
     }
   }
 

@@ -54,39 +54,38 @@ export const USER_ROLES = {
 };
 
 // =============================================================================
-// DEMO USERS (FOR DEVELOPMENT ONLY)
+// DEMO ACCOUNTS
+// Created by the backend's DemoDataSeeder when SEED_DEMO_DATA=true. Shown on the
+// sign-in page only when VITE_SHOW_DEMO_ACCOUNTS=true.
 // =============================================================================
-export const DEMO_USERS = [
-  {
-    id: 1,
-    email: 'admin@remedic.com',
-    password: 'admin123',
-    firstName: 'Admin',
-    lastName: 'User',
-    role: USER_ROLES.ADMIN,
-    gender: 'OTHER',
-    phoneNumber: '+1234567890'
-  },
-  {
-    id: 2,
-    email: 'doctor@remedic.com',
-    password: 'doctor123',
-    firstName: 'Dr. Sarah',
-    lastName: 'Smith',
-    role: USER_ROLES.DOCTOR,
-    gender: 'FEMALE',
-    phoneNumber: '+1234567891'
-  },
-  {
-    id: 3,
-    email: 'patient@remedic.com',
-    password: 'patient123',
-    firstName: 'John',
-    lastName: 'Doe',
-    role: USER_ROLES.PATIENT,
-    gender: 'MALE',
-    phoneNumber: '+1234567892'
-  }
+export const DEMO_PASSWORD = 'Demo@Clinic2025';
+
+export const DEMO_ACCOUNTS = [
+  { email: 'admin@emedical.demo', password: DEMO_PASSWORD, role: USER_ROLES.ADMIN },
+  { email: 'doctor@emedical.demo', password: DEMO_PASSWORD, role: USER_ROLES.DOCTOR },
+  { email: 'patient@emedical.demo', password: DEMO_PASSWORD, role: USER_ROLES.USER }
+];
+
+// Kept for older imports
+export const DEMO_USERS = DEMO_ACCOUNTS;
+
+// =============================================================================
+// CLINIC HOURS (must match AppointmentServiceImplementation.TIME_SLOTS)
+// =============================================================================
+export const CLINIC_TIME_SLOTS = ['09:00', '10:00', '11:00', '12:00', '14:00', '15:00', '16:00', '17:00'];
+
+// Doctor specializations offered when an admin adds a doctor
+export const SPECIALIZATIONS = [
+  'Cardiology',
+  'Dermatology',
+  'ENT',
+  'General Medicine',
+  'Gynecology',
+  'Neurology',
+  'Orthopedics',
+  'Pediatrics',
+  'Ophthalmology',
+  'Psychiatry'
 ];
 
 // =============================================================================
@@ -220,7 +219,7 @@ export const TIME_SLOTS = {
 // =============================================================================
 export const VALIDATION_PATTERNS = {
   EMAIL: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
-  PHONE: /^[\+]?[1-9][\d]{0,15}$/,
+  PHONE: /^[+]?[1-9][\d]{0,15}$/,
   PASSWORD: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/,
   NAME: /^[a-zA-Z\s]{2,50}$/
 };

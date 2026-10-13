@@ -1,0 +1,12 @@
+.git
+.github
+.idea
+.vscode
+.claude
+**/node_modules
+**/dist
+**/target
+**/.env
+**/*.log
+README.md
+bioMedical/img

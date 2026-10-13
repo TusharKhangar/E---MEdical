@@ -19,15 +19,25 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import com.spring.bioMedical.security.JwtFilter;
 
 import java.util.Arrays;
+import java.util.List;
+
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpMethod;
 
 @Configuration
 @EnableWebSecurity
 public class SecurityConfiguration {
 
 	private final JwtFilter jwtFilter;
+	private final AuthEntryPointJwt authEntryPoint;
 
-	public SecurityConfiguration(JwtFilter jwtFilter) {
+	// Browser origins allowed to call the API, from app.cors.allowed-origins
+	@Value("${app.cors.allowed-origins:http://localhost:5173,http://localhost:3000}")
+	private List<String> allowedOrigins;
+
+	public SecurityConfiguration(JwtFilter jwtFilter, AuthEntryPointJwt authEntryPoint) {
 		this.jwtFilter = jwtFilter;
+		this.authEntryPoint = authEntryPoint;
 	}
 
 	@Bean
@@ -44,10 +54,7 @@ public class SecurityConfiguration {
 	public CorsConfigurationSource corsConfigurationSource() {
 		CorsConfiguration configuration = new CorsConfiguration();
 
-		configuration.setAllowedOrigins(Arrays.asList(
-				"http://localhost:5173",
-				"http://localhost:3000"
-		));
+		configuration.setAllowedOrigins(allowedOrigins);
 
 		configuration.setAllowedMethods(Arrays.asList(
 				"GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"
@@ -83,8 +90,19 @@ public class SecurityConfiguration {
 								"/api/register",
 								"/api/login",
 								"/api/confirm",
-								"/api/confirmPassword"
+								"/api/confirmPassword",
+                                "/api/forgotPassword",
+                                "/api/resetPassword"
 						).permitAll()
+
+						// Public doctor directory and free slots
+						.requestMatchers(HttpMethod.GET, "/api/doctors", "/api/doctors/**").permitAll()
+
+						// Health check for Docker and the hosting platform
+						.requestMatchers("/actuator/health", "/actuator/info").permitAll()
+
+						// Spring's error page, so 400/404 responses are not turned into 403
+						.requestMatchers("/error").permitAll()
 
 						// Role-based API endpoints
 						.requestMatchers("/api/admin/**").hasRole("ADMIN")
@@ -92,11 +110,14 @@ public class SecurityConfiguration {
 						.requestMatchers("/api/user/**").hasRole("USER")
 
 						// All other API requests require authentication
-						.requestMatchers("/api/**").authenticated()
+						.requestMatchers("/api/**", "/actuator/**").authenticated()
 
-						// Deny all other requests (since we're API-only)
-						.anyRequest().denyAll()
+						// Everything else is the React app's static files, served from the same jar in Docker
+						.anyRequest().permitAll()
 				)
+
+				// Missing or expired token: answer 401 (not 403) so the frontend sends the user to login
+				.exceptionHandling(e -> e.authenticationEntryPoint(authEntryPoint))
 
 				// Add JWT filter before username/password authentication
 				.addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);

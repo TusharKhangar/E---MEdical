@@ -1,194 +1,115 @@
-// src/components/dashboard/MakeAppointment.jsx
+// src/pages/MakeAppointment.jsx
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 import {
   CalendarDaysIcon,
-  ClockIcon,
   UserIcon,
-  EnvelopeIcon,
   PencilSquareIcon,
   CheckCircleIcon,
-  XCircleIcon,
   AcademicCapIcon
 } from '@heroicons/react/24/outline';
+import { medicalService, errorMessage } from '../services/medicalService';
+
+const EMPTY_FORM = { department: '', doctorId: '', date: '', time: '', message: '' };
 
 const MakeAppointment = () => {
-  const { user, isPatient } = useAuth();
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
-  const [doctors, setDoctors] = useState([]);
-  const [selectedDoctor, setSelectedDoctor] = useState(null);
+  const [allDoctors, setAllDoctors] = useState([]);
   const [availableSlots, setAvailableSlots] = useState([]);
-  const [formData, setFormData] = useState({
-    fullName: '',
-    email: '',
-    date: '',
-    time: '',
-    message: '',
-    department: '',
-    doctorId: ''
-  });
+  const [slotsLoading, setSlotsLoading] = useState(false);
+  const [formData, setFormData] = useState(EMPTY_FORM);
 
-  // Mock doctors data
-  const mockDoctors = [
-    {
-      id: 1,
-      name: 'Dr. Sarah Johnson',
-      specialization: 'Cardiology',
-      fee: 1500,
-      rating: 4.8,
-      availability: ['09:00', '10:00', '11:00', '14:00', '15:00', '16:00']
-    },
-    {
-      id: 2,
-      name: 'Dr. Michael Smith',
-      specialization: 'Neurology',
-      fee: 1800,
-      rating: 4.7,
-      availability: ['10:00', '11:00', '12:00', '15:00', '16:00', '17:00']
-    },
-    {
-      id: 3,
-      name: 'Dr. Priya Patel',
-      specialization: 'Pediatrics',
-      fee: 1200,
-      rating: 4.9,
-      availability: ['08:00', '09:00', '10:00', '14:00', '15:00']
-    },
-    {
-      id: 4,
-      name: 'Dr. Rajesh Kumar',
-      specialization: 'Orthopedics',
-      fee: 2000,
-      rating: 4.6,
-      availability: ['09:00', '10:00', '11:00', '16:00', '17:00']
-    }
-  ];
-
-  const departments = [
-    'Cardiology',
-    'Neurology',
-    'Pediatrics',
-    'Orthopedics',
-    'Emergency Medicine',
-    'General Medicine',
-    'Dermatology',
-    'ENT',
-    'Gynecology',
-    'Ophthalmology'
-  ];
-
+  // Doctor directory from the backend
   useEffect(() => {
-    setDoctors(mockDoctors);
-    // Pre-fill user data if available
-    if (user) {
-      setFormData(prev => ({
-        ...prev,
-        fullName: `${user.firstName || ''} ${user.lastName || ''}`.trim(),
-        email: user.email || ''
-      }));
-    }
-  }, [user]);
+    medicalService.getDoctors()
+      .then(setAllDoctors)
+      .catch((error) => toast.error(errorMessage(error, 'Could not load doctors')));
+  }, []);
 
-  useEffect(() => {
-    // Update available doctors when department changes
-    if (formData.department) {
-      const departmentDoctors = mockDoctors.filter(
-        doctor => doctor.specialization === formData.department
-      );
-      setDoctors(departmentDoctors);
-      
-      // Reset doctor selection if current doctor doesn't match department
-      if (selectedDoctor && selectedDoctor.specialization !== formData.department) {
-        setSelectedDoctor(null);
-        setFormData(prev => ({ ...prev, doctorId: '', time: '' }));
-        setAvailableSlots([]);
-      }
-    } else {
-      setDoctors(mockDoctors);
-    }
-  }, [formData.department]);
+  const departments = useMemo(
+    () => [...new Set(allDoctors.map(d => d.specialization).filter(Boolean))].sort(),
+    [allDoctors]
+  );
 
+  const doctors = useMemo(
+    () => (formData.department
+      ? allDoctors.filter(d => d.specialization === formData.department)
+      : allDoctors),
+    [allDoctors, formData.department]
+  );
+
+  const selectedDoctor = useMemo(
+    () => allDoctors.find(d => String(d.id) === String(formData.doctorId)) || null,
+    [allDoctors, formData.doctorId]
+  );
+
+  // Free slots for the chosen doctor and date
   useEffect(() => {
-    // Update available time slots when doctor and date are selected
-    if (formData.doctorId && formData.date) {
-      const doctor = mockDoctors.find(d => d.id === parseInt(formData.doctorId));
-      if (doctor) {
-        setSelectedDoctor(doctor);
-        setAvailableSlots(doctor.availability);
-      }
-    } else {
+    if (!formData.doctorId || !formData.date) {
       setAvailableSlots([]);
+      return;
     }
+    let cancelled = false;
+    setSlotsLoading(true);
+    medicalService.getDoctorSlots(formData.doctorId, formData.date)
+      .then((result) => { if (!cancelled) setAvailableSlots(result.slots || []); })
+      .catch((error) => { if (!cancelled) toast.error(errorMessage(error, 'Could not load free slots')); })
+      .finally(() => { if (!cancelled) setSlotsLoading(false); });
+    return () => { cancelled = true; };
   }, [formData.doctorId, formData.date]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    setFormData(prev => {
+      const next = { ...prev, [name]: value };
+      // Changing department or doctor invalidates the chosen doctor/time
+      if (name === 'department' && prev.doctorId) {
+        const stillValid = allDoctors.some(d => String(d.id) === String(prev.doctorId) && (!value || d.specialization === value));
+        if (!stillValid) { next.doctorId = ''; next.time = ''; }
+      }
+      if (name === 'doctorId' || name === 'date') next.time = '';
+      return next;
+    });
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!formData.doctorId || !formData.date || !formData.time) {
+      toast.error('Please choose a doctor, a date and a time');
+      return;
+    }
     setLoading(true);
-
     try {
-      // Validate required fields
-      if (!formData.fullName || !formData.email || !formData.date || !formData.time || !formData.doctorId) {
-        toast.error('Please fill all required fields');
-        return;
-      }
-
-      // Validate email format
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(formData.email)) {
-        toast.error('Please enter a valid email address');
-        return;
-      }
-
-      // Validate date is not in the past
-      const selectedDate = new Date(formData.date);
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      
-      if (selectedDate < today) {
-        toast.error('Please select a future date');
-        return;
-      }
-
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      toast.success('Appointment booked successfully!');
-      
-      // Reset form
-      setFormData({
-        fullName: user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : '',
-        email: user?.email || '',
-        date: '',
-        time: '',
-        message: '',
-        department: '',
-        doctorId: ''
+      await medicalService.bookAppointment({
+        doctorId: Number(formData.doctorId),
+        date: formData.date,
+        time: formData.time,
+        description: formData.message
       });
-      setSelectedDoctor(null);
-      setAvailableSlots([]);
+      toast.success('Appointment booked! The doctor will confirm it shortly.');
+      navigate('/dashboard/appointments');
     } catch (error) {
-      toast.error('Failed to book appointment. Please try again.');
+      toast.error(errorMessage(error, 'Failed to book appointment. Please try again.'));
+      // The slot may have just been taken: refresh the list
+      if (error.response?.status === 409) {
+        setFormData(prev => ({ ...prev, time: '' }));
+        medicalService.getDoctorSlots(formData.doctorId, formData.date)
+          .then((result) => setAvailableSlots(result.slots || []))
+          .catch(() => {});
+      }
     } finally {
       setLoading(false);
     }
   };
 
   // Get minimum date (today)
-  const getMinDate = () => {
-    const today = new Date();
-    return today.toISOString().split('T')[0];
-  };
+  const getMinDate = () => new Date().toISOString().split('T')[0];
 
   // Get maximum date (3 months from now)
   const getMaxDate = () => {
@@ -234,32 +155,21 @@ const MakeAppointment = () => {
                 </h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Full Name *
-                    </label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Full Name</label>
                     <input
                       type="text"
-                      name="fullName"
-                      value={formData.fullName}
-                      onChange={handleInputChange}
-                      required
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      placeholder="Enter your full name"
+                      value={`${user?.firstName || ''} ${user?.lastName || ''}`.trim()}
+                      readOnly
+                      className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-gray-700"
                     />
                   </div>
-
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Email *
-                    </label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
                     <input
                       type="email"
-                      name="email"
-                      value={formData.email}
-                      onChange={handleInputChange}
-                      required
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      placeholder="your.email@example.com"
+                      value={user?.email || ''}
+                      readOnly
+                      className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-gray-700"
                     />
                   </div>
                 </div>
@@ -273,16 +183,14 @@ const MakeAppointment = () => {
                 </h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Department
-                    </label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Department</label>
                     <select
                       name="department"
                       value={formData.department}
                       onChange={handleInputChange}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     >
-                      <option value="">Select Department</option>
+                      <option value="">All departments</option>
                       {departments.map(dept => (
                         <option key={dept} value={dept}>{dept}</option>
                       ))}
@@ -290,9 +198,7 @@ const MakeAppointment = () => {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Doctor *
-                    </label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Doctor *</label>
                     <select
                       name="doctorId"
                       value={formData.doctorId}
@@ -301,19 +207,17 @@ const MakeAppointment = () => {
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       disabled={doctors.length === 0}
                     >
-                      <option value="">Select Doctor</option>
+                      <option value="">{doctors.length ? 'Select Doctor' : 'No doctors available'}</option>
                       {doctors.map(doctor => (
                         <option key={doctor.id} value={doctor.id}>
-                          {doctor.name} - {doctor.specialization} (₹{doctor.fee})
+                          Dr. {doctor.firstName} {doctor.lastName}{doctor.specialization ? ` - ${doctor.specialization}` : ''}
                         </option>
                       ))}
                     </select>
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Date *
-                    </label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Date *</label>
                     <input
                       type="date"
                       name="date"
@@ -327,9 +231,7 @@ const MakeAppointment = () => {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Time *
-                    </label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Time *</label>
                     <select
                       name="time"
                       value={formData.time}
@@ -338,16 +240,14 @@ const MakeAppointment = () => {
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       disabled={availableSlots.length === 0}
                     >
-                      <option value="">Select Time</option>
+                      <option value="">{slotsLoading ? 'Loading...' : 'Select Time'}</option>
                       {availableSlots.map(slot => (
-                        <option key={slot} value={slot}>
-                          {slot}
-                        </option>
+                        <option key={slot} value={slot}>{slot}</option>
                       ))}
                     </select>
-                    {formData.doctorId && formData.date && availableSlots.length === 0 && (
+                    {formData.doctorId && formData.date && !slotsLoading && availableSlots.length === 0 && (
                       <p className="text-sm text-red-600 mt-1">
-                        No available slots for selected date
+                        No free slots on this date. Please pick another day.
                       </p>
                     )}
                   </div>
@@ -358,21 +258,17 @@ const MakeAppointment = () => {
               <div className="border-t pt-6">
                 <h4 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
                   <PencilSquareIcon className="h-5 w-5 mr-2" />
-                  Message
+                  Reason for visit
                 </h4>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Describe your symptoms or reason for visit
-                  </label>
-                  <textarea
-                    name="message"
-                    value={formData.message}
-                    onChange={handleInputChange}
-                    rows="4"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="Please describe your symptoms, concerns, or reason for this appointment..."
-                  />
-                </div>
+                <textarea
+                  name="message"
+                  value={formData.message}
+                  onChange={handleInputChange}
+                  rows="4"
+                  maxLength={255}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Please describe your symptoms, concerns, or reason for this appointment..."
+                />
               </div>
 
               {/* Selected Doctor Info */}
@@ -383,20 +279,8 @@ const MakeAppointment = () => {
                     Selected Doctor
                   </h4>
                   <div className="bg-blue-50 rounded-lg p-4">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <h5 className="font-semibold text-gray-900">{selectedDoctor.name}</h5>
-                        <p className="text-sm text-gray-600">{selectedDoctor.specialization}</p>
-                        <div className="flex items-center mt-2">
-                          <span className="text-yellow-500 mr-1">★</span>
-                          <span className="text-sm text-gray-600">{selectedDoctor.rating} rating</span>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-lg font-semibold text-green-600">₹{selectedDoctor.fee}</p>
-                        <p className="text-sm text-gray-600">Consultation fee</p>
-                      </div>
-                    </div>
+                    <h5 className="font-semibold text-gray-900">Dr. {selectedDoctor.firstName} {selectedDoctor.lastName}</h5>
+                    <p className="text-sm text-gray-600">{selectedDoctor.specialization || 'General practice'}</p>
                   </div>
                 </div>
               )}
@@ -406,19 +290,7 @@ const MakeAppointment = () => {
                 <button
                   type="button"
                   className="px-6 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition duration-200"
-                  onClick={() => {
-                    setFormData({
-                      fullName: user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : '',
-                      email: user?.email || '',
-                      date: '',
-                      time: '',
-                      message: '',
-                      department: '',
-                      doctorId: ''
-                    });
-                    setSelectedDoctor(null);
-                    setAvailableSlots([]);
-                  }}
+                  onClick={() => setFormData(EMPTY_FORM)}
                 >
                   Reset
                 </button>
@@ -448,11 +320,10 @@ const MakeAppointment = () => {
         <div className="mt-6 bg-gray-50 rounded-lg p-6">
           <h4 className="font-medium text-gray-900 mb-3">Important Notes:</h4>
           <ul className="text-sm text-gray-600 space-y-2">
+            <li>• Clinic hours are 9:00 to 17:00, closed 13:00 to 14:00</li>
             <li>• Please arrive 15 minutes before your scheduled appointment</li>
             <li>• Bring your ID and any relevant medical records</li>
-            <li>• Appointments can be rescheduled up to 24 hours in advance</li>
-            <li>• Consultation fees are payable at the time of visit</li>
-            <li>• You will receive a confirmation email once your appointment is booked</li>
+            <li>• You can cancel from My Appointments; the doctor confirms each booking</li>
           </ul>
         </div>
       </motion.div>

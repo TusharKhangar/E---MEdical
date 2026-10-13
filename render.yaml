@@ -1,0 +1,52 @@
+# Render blueprint: one web service built from the Dockerfile plus a managed PostgreSQL database.
+# In the Render dashboard: New > Blueprint > pick this repository. Everything below is created for you.
+# The only values you may want to add afterwards are MAIL_USERNAME / MAIL_PASSWORD (optional, for
+# real e-mails) and FRONTEND_URL once you know the public URL.
+services:
+  - type: web
+    name: e-medical
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /actuator/health
+    envVars:
+      - key: DB_VENDOR
+        value: postgresql
+      - key: DB_HOST
+        fromDatabase:
+          name: e-medical-db
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: e-medical-db
+          property: port
+      - key: DB_NAME
+        fromDatabase:
+          name: e-medical-db
+          property: database
+      - key: DB_USERNAME
+        fromDatabase:
+          name: e-medical-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: e-medical-db
+          property: password
+      - key: JWT_SECRET
+        generateValue: true
+      - key: SEED_DEMO_DATA
+        value: "true"
+      - key: FRONTEND_URL
+        value: https://e-medical.onrender.com
+      - key: CORS_ALLOWED_ORIGINS
+        value: https://e-medical.onrender.com
+      - key: APP_TIME_ZONE
+        value: Asia/Kolkata
+      - key: JAVA_OPTS
+        value: -XX:MaxRAMPercentage=75 -Xss512k
+
+databases:
+  - name: e-medical-db
+    plan: free
+    databaseName: emedical
+    user: emedical

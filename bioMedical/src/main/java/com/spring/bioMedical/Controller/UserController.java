@@ -1,11 +1,8 @@
 package com.spring.bioMedical.Controller;
 
-import java.text.SimpleDateFormat;
 import java.time.LocalDateTime;
-import java.util.Date;
+import java.util.List;
 
-import com.mysql.cj.log.Log;
-import com.spring.bioMedical.repository.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,14 +12,18 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
+import com.spring.bioMedical.dto.AppointmentDto;
 import com.spring.bioMedical.dto.AppointmentRequest;
-import com.spring.bioMedical.dto.AppointmentResponse;
 import com.spring.bioMedical.dto.UserProfileResponse;
-import com.spring.bioMedical.entity.Admin;
+import com.spring.bioMedical.entity.User;
 import com.spring.bioMedical.entity.Appointment;
+import com.spring.bioMedical.exception.ApiException;
 import com.spring.bioMedical.service.AdminServiceImplementation;
 import com.spring.bioMedical.service.AppointmentServiceImplementation;
 
+import jakarta.validation.Valid;
+
+/** Endpoints for patients (ROLE_USER). */
 @RestController
 @RequestMapping("/api/user")
 public class UserController {
@@ -38,34 +39,46 @@ public class UserController {
 	}
 
 	@PostMapping("/appointments")
-	public ResponseEntity<AppointmentResponse> bookAppointment(@RequestBody AppointmentRequest appointmentRequest) {
-		String username = getLoggedInUsername();
-		Admin admin = adminServiceImplementation.findByEmail(username);
+	public ResponseEntity<AppointmentDto> bookAppointment(@Valid @RequestBody AppointmentRequest appointmentRequest) {
+		User patient = adminServiceImplementation.findByEmail(getLoggedInUsername());
+		User doctor = adminServiceImplementation.findDoctorById(appointmentRequest.getDoctorId());
 
-		Appointment appointment = appointmentRequest.toEntity();
-		appointment.setName(admin.getFirstName() + " " + admin.getLastName());
-		appointment.setEmail(admin.getEmail());
+		Appointment appointment = appointmentServiceImplementation.book(patient, doctor, appointmentRequest.getDate(),
+				appointmentRequest.getTime(), appointmentRequest.getDescription());
 
-		appointmentServiceImplementation.save(appointment);
+		return ResponseEntity.status(HttpStatus.CREATED).body(new AppointmentDto(appointment));
+	}
 
-		return ResponseEntity.status(HttpStatus.CREATED).body(new AppointmentResponse(appointment));
+	@GetMapping("/appointments")
+	public ResponseEntity<List<AppointmentDto>> getMyAppointments() {
+		List<AppointmentDto> appointments = appointmentServiceImplementation.findByPatientEmail(getLoggedInUsername())
+				.stream()
+				.map(AppointmentDto::new)
+				.toList();
+		return ResponseEntity.ok(appointments);
+	}
+
+	@PatchMapping("/appointments/{id}/cancel")
+	public ResponseEntity<AppointmentDto> cancelAppointment(@PathVariable Long id) {
+		Appointment appointment = appointmentServiceImplementation.findById(id)
+				.filter(a -> getLoggedInUsername().equalsIgnoreCase(a.getEmail()))
+				.orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Appointment not found"));
+		return ResponseEntity.ok(new AppointmentDto(
+				appointmentServiceImplementation.changeStatus(appointment, Appointment.CANCELLED)));
 	}
 
 	@GetMapping("/profile")
 	public ResponseEntity<UserProfileResponse> getUserProfile() {
 		updateLastSeen();
 		String username = getLoggedInUsername();
-		Admin admin = adminServiceImplementation.findByEmail(username);
+		User admin = adminServiceImplementation.findByEmail(username);
 		return ResponseEntity.ok(new UserProfileResponse(admin));
 	}
 
 	private void updateLastSeen() {
 		String username = getLoggedInUsername();
-		Admin admin = adminServiceImplementation.findByEmail(username);
-		SimpleDateFormat formatter = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss");
-		Date now = new Date();
-		String log = now.toString();
-		admin.setLastseen(log);
+		User admin = adminServiceImplementation.findByEmail(username);
+		admin.setLastseen(LocalDateTime.now().withNano(0).toString());
 		adminServiceImplementation.save(admin);
 	}
 
@@ -82,7 +95,7 @@ public class UserController {
 	public ResponseEntity<String> setUserProfile(@RequestParam("firstName") String firstName,@RequestParam("lastName") String lastName){
 		try{
 			String username = getLoggedInUsername();
-			Admin admin = 	adminServiceImplementation.findByEmail(username);
+			User admin = 	adminServiceImplementation.findByEmail(username);
 
 			if (admin != null){
 				admin.setFirstName(firstName);

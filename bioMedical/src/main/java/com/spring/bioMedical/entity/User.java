@@ -9,7 +9,7 @@ import jakarta.persistence.Table;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotEmpty;
 import lombok.*;
-import org.springframework.data.annotation.Transient;
+import jakarta.persistence.Transient;
 
 /**
  *
@@ -76,9 +76,12 @@ public class User {
 	private String role;
 
 	@Getter
-	//    @Column(name = "lastseen")
-	//  @Transient
 	private String lastseen;
+
+	// Doctors only: the department they work in, e.g. "Cardiology".
+	@Getter
+	@Column(name = "specialization")
+	private String specialization;
 
 	public boolean getEnabled() {
 		return enabled;
@@ -86,9 +89,9 @@ public class User {
 
 	@Override
 	public String toString() {
-		return "User [id=" + id + ", email=" + email + ", password=" + password + ", confirmPassword=" + confirmPassword +
-				", firstName=" + firstName + ", lastName=" + lastName + ", phoneNumber=" + phoneNumber +
-				", enabled=" + enabled + ", confirmationToken=" + confirmationToken
-				+ ", gender=" + gender + ", role=" + role + ", lastseen=" + lastseen + "]";
+		// Password and confirmation token are left out on purpose: this string ends up in logs.
+		return "User [id=" + id + ", email=" + email + ", firstName=" + firstName + ", lastName=" + lastName
+				+ ", phoneNumber=" + phoneNumber + ", enabled=" + enabled + ", gender=" + gender + ", role=" + role
+				+ ", specialization=" + specialization + ", lastseen=" + lastseen + "]";
 	}
 }

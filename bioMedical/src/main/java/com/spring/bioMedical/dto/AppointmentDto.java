@@ -15,6 +15,10 @@ public class AppointmentDto {
     private String time;
     private String description;
     private String regtime;
+    private Long doctorId;
+    private String doctorName;
+    private String department;
+    private String status;
 
     public AppointmentDto() {
     }
@@ -27,6 +31,10 @@ public class AppointmentDto {
         this.time = appointment.getTime();
         this.description = appointment.getDescription();
         this.regtime = appointment.getRegtime();
+        this.doctorId = appointment.getDoctorId();
+        this.doctorName = appointment.getDoctorName();
+        this.department = appointment.getDepartment();
+        this.status = appointment.getStatus() == null ? Appointment.PENDING : appointment.getStatus();
     }
 
     public Appointment toEntity() {
