@@ -16,25 +16,13 @@ function App() {
           
           {/* Toast notifications */}
           <Toaster
-            position="top-right"
+            position="top-center"
             toastOptions={{
               duration: 4000,
-              style: {
-                background: '#363636',
-                color: '#fff',
-              },
-              success: {
-                duration: 3000,
-                theme: {
-                  primary: '#4aed88',
-                },
-              },
-              error: {
-                duration: 4000,
-                theme: {
-                  primary: '#f87171',
-                },
-              },
+              className: 'text-sm',
+              style: { background: '#0f172a', color: '#fff', borderRadius: '10px', padding: '10px 14px' },
+              success: { iconTheme: { primary: '#4fa59b', secondary: '#0f172a' } },
+              error: { iconTheme: { primary: '#f87171', secondary: '#0f172a' } },
             }}
           />
         </div>

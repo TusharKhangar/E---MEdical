@@ -1,16 +1,13 @@
 // src/components/dashboard/AddDoctorForm.jsx
 import React from 'react';
-import { AcademicCapIcon } from '@heroicons/react/24/outline';
 import StaffForm from './StaffForm';
 import { medicalService } from '../../services/medicalService';
 
 const AddDoctorForm = () => (
   <StaffForm
     kind="doctor"
-    title="Add New Doctor"
-    description="Register a doctor and their specialization. Patients can book them straight away once they set a password."
-    Icon={AcademicCapIcon}
-    iconColour="text-blue-600"
+    title="Add a doctor"
+    description="Patients can book them as soon as they set their password from the invitation e-mail."
     submit={medicalService.addDoctor}
     listPath="/dashboard/doctor-details"
   />

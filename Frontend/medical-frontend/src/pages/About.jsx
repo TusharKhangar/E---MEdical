@@ -1,102 +1,64 @@
+// About the clinic and what the app does for each kind of user.
 import React from 'react';
-import Header from '../components/common/Header';
-import { motion } from 'framer-motion';
+import { Link } from 'react-router-dom';
+import { CalendarClock, FileText, HeartHandshake, Lock, MailCheck, Users } from 'lucide-react';
+import PageHeader from '../components/common/PageHeader';
 
-const About = () => {
-  return (
-    <div className="min-h-screen bg-gray-50">
-      
-      <div className="container mx-auto px-4 py-16">
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="text-center mb-16"
-        >
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">About REMEDIC</h1>
-          <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-            We are committed to providing exceptional healthcare services with the most advanced technology 
-            and compassionate care. Your health is our top priority.
-          </p>
-        </motion.div>
+const PRINCIPLES = [
+  { Icon: HeartHandshake, title: 'Care first', text: 'Every feature exists to get patients in front of the right doctor sooner.' },
+  { Icon: MailCheck, title: 'No surprises', text: 'You hear from us when a visit is booked, confirmed, moved or cancelled, and the evening before.' },
+  { Icon: Lock, title: 'Your data stays yours', text: 'Only you, your doctor and clinic administrators can see your appointments and prescriptions.' },
+];
 
-        <div className="grid md:grid-cols-2 gap-12 items-center mb-16">
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.2 }}
-          >
-            <h2 className="text-3xl font-bold text-gray-900 mb-6">Our Mission</h2>
-            <p className="text-gray-600 mb-4">
-              To provide comprehensive, accessible, and high-quality healthcare services that promote 
-              wellness and healing in our community. We strive to be a trusted partner in your health 
-              journey, offering personalized care with the latest medical technology.
-            </p>
-            <p className="text-gray-600">
-              Our team of experienced healthcare professionals is dedicated to excellence in patient care, 
-              continuous learning, and innovation in medical practices.
-            </p>
-          </motion.div>
-          
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.4 }}
-            className="bg-gradient-to-br from-blue-500 to-purple-600 p-8 rounded-2xl text-white"
-          >
-            <h3 className="text-2xl font-bold mb-4">Why Choose REMEDIC?</h3>
-            <ul className="space-y-3">
-              <li className="flex items-center">
-                <span className="mr-3">✓</span>
-                24/7 Emergency Services
-              </li>
-              <li className="flex items-center">
-                <span className="mr-3">✓</span>
-                State-of-the-art Technology
-              </li>
-              <li className="flex items-center">
-                <span className="mr-3">✓</span>
-                Experienced Medical Team
-              </li>
-              <li className="flex items-center">
-                <span className="mr-3">✓</span>
-                Comprehensive Care
-              </li>
-              <li className="flex items-center">
-                <span className="mr-3">✓</span>
-                Patient-Centered Approach
-              </li>
-            </ul>
-          </motion.div>
+const ROLES = [
+  { Icon: Users, title: 'Patients', points: ['Book and move appointments online', 'See the doctor’s real free times', 'Download prescriptions as PDF'] },
+  { Icon: CalendarClock, title: 'Doctors', points: ['Set weekly hours and days off', 'Confirm or decline requests', 'Record notes and prescriptions'] },
+  { Icon: FileText, title: 'Administrators', points: ['Invite doctors and staff by e-mail', 'Search every appointment', 'Follow bookings on the analytics page'] },
+];
+
+const About = () => (
+  <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6">
+    <PageHeader
+      eyebrow="About"
+      title="A calmer way to see a doctor"
+      subtitle="E-Medical brings booking, reminders and prescriptions together, so patients spend less time on the phone and doctors spend more time with patients."
+    />
+
+    <section className="mt-12 grid gap-4 md:grid-cols-3" aria-labelledby="principles">
+      <h2 id="principles" className="sr-only">What we stand for</h2>
+      {PRINCIPLES.map(({ Icon, title, text }) => (
+        <div key={title} className="card p-6">
+          <Icon className="h-5 w-5 text-brand-700" strokeWidth={1.75} aria-hidden="true" />
+          <h3 className="mt-3 font-semibold text-slate-900">{title}</h3>
+          <p className="mt-1.5 text-sm text-slate-600">{text}</p>
         </div>
+      ))}
+    </section>
 
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.6 }}
-          className="text-center"
-        >
-          <h2 className="text-3xl font-bold text-gray-900 mb-8">Our Values</h2>
-          <div className="grid md:grid-cols-3 gap-8">
-            <div className="bg-white p-6 rounded-xl shadow-md">
-              <div className="text-4xl mb-4">❤️</div>
-              <h3 className="text-xl font-semibold mb-2">Compassion</h3>
-              <p className="text-gray-600">We treat every patient with empathy, respect, and dignity.</p>
+    <section className="mt-16">
+      <h2 className="text-2xl font-semibold text-slate-900">Who it’s for</h2>
+      <div className="mt-6 grid gap-4 md:grid-cols-3">
+        {ROLES.map(({ Icon, title, points }) => (
+          <div key={title} className="rounded-xl border border-slate-200 bg-white p-6">
+            <div className="flex items-center gap-2">
+              <Icon className="h-5 w-5 text-slate-600" strokeWidth={1.75} aria-hidden="true" />
+              <h3 className="font-semibold text-slate-900">{title}</h3>
             </div>
-            <div className="bg-white p-6 rounded-xl shadow-md">
-              <div className="text-4xl mb-4">🎯</div>
-              <h3 className="text-xl font-semibold mb-2">Excellence</h3>
-              <p className="text-gray-600">We strive for the highest standards in medical care and service.</p>
-            </div>
-            <div className="bg-white p-6 rounded-xl shadow-md">
-              <div className="text-4xl mb-4">🤝</div>
-              <h3 className="text-xl font-semibold mb-2">Integrity</h3>
-              <p className="text-gray-600">We act with honesty, transparency, and ethical principles.</p>
-            </div>
+            <ul className="mt-4 space-y-2 text-sm text-slate-600">
+              {points.map((p) => (
+                <li key={p} className="flex gap-2"><span aria-hidden="true" className="text-brand-600">•</span>{p}</li>
+              ))}
+            </ul>
           </div>
-        </motion.div>
+        ))}
       </div>
+    </section>
+
+    <div className="mt-16 flex flex-wrap items-center gap-3">
+      <Link to="/doctors" className="btn-primary">Find a doctor</Link>
+      <Link to="/contact" className="btn-secondary">Contact us</Link>
     </div>
-  );
-};
+  </div>
+);
 
 export default About;

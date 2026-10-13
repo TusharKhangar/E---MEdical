@@ -1,34 +1,48 @@
 // src/components/appointments/AppointmentList.jsx
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
+import { CalendarPlus, Check, CheckCheck, FileText, Pencil, RotateCcw, Search, X } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import {
-  CalendarDaysIcon,
-  CheckCircleIcon,
-  XCircleIcon,
-  ClockIcon,
-  UserIcon,
-  CheckBadgeIcon,
-  ArrowPathIcon,
-  DocumentTextIcon,
-  PencilSquareIcon
-} from '@heroicons/react/24/outline';
 import RescheduleDialog from './RescheduleDialog';
 import PrescriptionDialog from './PrescriptionDialog';
 import PrescriptionView from './PrescriptionView';
 import AdminAppointments from './AdminAppointments';
-import DataTable from '../common/DataTable';
+import ServerTable from '../common/ServerTable';
 import StatusBadge from '../common/StatusBadge';
+import { PageTitle, Spinner } from '../dashboard/ui';
 import { getAppointmentsForRole, setAppointmentStatusForRole, errorMessage } from '../../services/medicalService';
+import { longDate, todayIso } from '../../utils/format';
+import { pageOf } from '../../utils/paging';
 
-/** A patient's or doctor's own appointments (small lists, filtered in the browser). */
+const PAGE_SIZE = 15;
+const TABS = [
+  { key: 'upcoming', label: 'Upcoming' },
+  { key: 'PENDING', label: 'Pending' },
+  { key: 'CONFIRMED', label: 'Confirmed' },
+  { key: 'COMPLETED', label: 'Completed' },
+  { key: 'CANCELLED', label: 'Cancelled' },
+  { key: 'all', label: 'All' },
+];
+
+const isActive = (a) => a.status === 'PENDING' || a.status === 'CONFIRMED';
+
+/** Small square icon button with a tooltip and an accessible name. */
+const IconButton = ({ title, onClick, disabled, Icon, tone = 'text-slate-600 hover:bg-slate-100 hover:text-slate-900' }) => (
+  <button type="button" title={title} aria-label={title} onClick={onClick} disabled={disabled}
+    className={`rounded-md p-1.5 transition-colors disabled:opacity-40 ${tone}`}>
+    <Icon className="h-4 w-4" />
+  </button>
+);
+
+/** A patient's or doctor's own appointments (short lists, filtered in the browser). */
 const OwnAppointments = () => {
   const { user, isPatient, isDoctor } = useAuth();
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState('all');
+  const [tab, setTab] = useState('upcoming');
+  const [query, setQuery] = useState('');
+  const [pageNo, setPageNo] = useState(0);
   const [busyId, setBusyId] = useState(null);
   const [rescheduling, setRescheduling] = useState(null);
   const [prescribing, setPrescribing] = useState(null);
@@ -45,28 +59,41 @@ const OwnAppointments = () => {
     }
   }, [user?.role]);
 
-  useEffect(() => {
-    fetchAppointments();
-  }, [fetchAppointments]);
+  useEffect(() => { fetchAppointments(); }, [fetchAppointments]);
+  useEffect(() => { setPageNo(0); }, [tab, query]);
 
-  const statusCounts = {
-    all: appointments.length,
-    pending: appointments.filter(apt => apt.status === 'PENDING').length,
-    confirmed: appointments.filter(apt => apt.status === 'CONFIRMED').length,
-    completed: appointments.filter(apt => apt.status === 'COMPLETED').length,
-    cancelled: appointments.filter(apt => apt.status === 'CANCELLED').length
-  };
+  const today = todayIso();
+  const counts = useMemo(() => {
+    const c = { upcoming: 0, all: appointments.length };
+    appointments.forEach((a) => {
+      c[a.status] = (c[a.status] || 0) + 1;
+      if (a.date >= today && isActive(a)) c.upcoming += 1;
+    });
+    return c;
+  }, [appointments, today]);
 
-  const visible = filter === 'all'
-    ? appointments
-    : appointments.filter(apt => apt.status === filter.toUpperCase());
+  const visible = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    let rows = appointments.filter((a) =>
+      tab === 'all' ? true : tab === 'upcoming' ? a.date >= today && isActive(a) : a.status === tab);
+    if (q) {
+      rows = rows.filter((a) => [a.name, a.email, a.doctorName, a.department, a.description]
+        .some((v) => v?.toLowerCase().includes(q)));
+    }
+    // Upcoming reads best soonest first; history newest first
+    return tab === 'upcoming'
+      ? [...rows].sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time))
+      : rows;
+  }, [appointments, tab, query, today]);
 
-  const handleStatusChange = async (appointmentId, newStatus) => {
+  const replace = (updated) => setAppointments((prev) => prev.map((a) => (a.id === updated.id ? updated : a)));
+
+  const handleStatusChange = async (row, newStatus) => {
     if (newStatus === 'CANCELLED' && !window.confirm('Cancel this appointment?')) return;
-    setBusyId(appointmentId);
+    setBusyId(row.id);
     try {
-      const updated = await setAppointmentStatusForRole(user?.role, appointmentId, newStatus);
-      setAppointments(prev => prev.map(apt => (apt.id === appointmentId ? updated : apt)));
+      const updated = await setAppointmentStatusForRole(user?.role, row.id, newStatus);
+      replace(updated);
       toast.success(`Appointment ${updated.status.toLowerCase()}`);
     } catch (error) {
       toast.error(errorMessage(error, 'Could not update the appointment'));
@@ -75,208 +102,105 @@ const OwnAppointments = () => {
     }
   };
 
-  const actionButton = (row, status, Icon, title, colour) => (
-    <button
-      onClick={() => handleStatusChange(row.id, status)}
-      disabled={busyId === row.id}
-      className={`${colour} p-1 rounded disabled:opacity-40`}
-      title={title}
-    >
-      <Icon className="h-5 w-5" />
-    </button>
-  );
-
   const columns = [
-    { key: 'date', title: 'Date' },
-    { key: 'time', title: 'Time' },
-    ...(isPatient()
-      ? [{ key: 'doctorName', title: 'Doctor' }]
-      : [{ key: 'name', title: 'Patient' }, { key: 'email', title: 'Email' }]),
-    ...(user?.role === 'ROLE_ADMIN' ? [{ key: 'doctorName', title: 'Doctor' }] : []),
-    { key: 'department', title: 'Department' },
-    { key: 'description', title: 'Reason' },
     {
-      key: 'status',
-      title: 'Status',
-      render: (value) => <StatusBadge status={value} />
-    },
-    {
-      key: 'actions',
-      title: 'Actions',
+      key: 'date', title: 'When',
       render: (_, row) => (
-        <div className="flex space-x-2">
-          {isPatient() && (row.status === 'PENDING' || row.status === 'CONFIRMED') && (
+        <span>
+          <span className="block font-medium text-slate-900">{longDate(row.date)}</span>
+          <span className="text-xs text-slate-600">{row.time}</span>
+        </span>
+      ),
+    },
+    ...(isPatient()
+      ? [{ key: 'doctorName', title: 'Doctor', render: (v, row) => (
+          <span><span className="block text-slate-900">{v}</span><span className="text-xs text-slate-600">{row.department || 'General'}</span></span>) }]
+      : [{ key: 'name', title: 'Patient', render: (v, row) => (
+          <span><span className="block text-slate-900">{v}</span><span className="text-xs text-slate-600">{row.email}</span></span>) }]),
+    { key: 'description', title: 'Reason', className: 'max-w-xs truncate whitespace-normal', render: (v) => v || <span className="text-slate-600">–</span> },
+    { key: 'status', title: 'Status', render: (v) => <StatusBadge status={v} /> },
+    {
+      key: 'actions', title: <span className="sr-only">Actions</span>,
+      render: (_, row) => (
+        <div className="flex items-center justify-end gap-0.5">
+          {isPatient() && isActive(row) && (
             <>
-              <button
-                onClick={() => setRescheduling(row)}
-                className="text-blue-600 hover:bg-blue-50 p-1 rounded"
-                title="Reschedule"
-              >
-                <ArrowPathIcon className="h-5 w-5" />
-              </button>
-              {actionButton(row, 'CANCELLED', XCircleIcon, 'Cancel', 'text-red-600 hover:bg-red-50')}
+              <IconButton title="Reschedule" Icon={RotateCcw} onClick={() => setRescheduling(row)} />
+              <IconButton title="Cancel" Icon={X} disabled={busyId === row.id} onClick={() => handleStatusChange(row, 'CANCELLED')}
+                tone="text-slate-600 hover:bg-red-50 hover:text-red-700" />
             </>
           )}
-          {!isPatient() && row.status === 'PENDING' && (
-            <>
-              {actionButton(row, 'CONFIRMED', CheckCircleIcon, 'Confirm', 'text-green-600 hover:bg-green-50')}
-              {actionButton(row, 'CANCELLED', XCircleIcon, 'Cancel', 'text-red-600 hover:bg-red-50')}
-            </>
+          {isDoctor() && row.status === 'PENDING' && (
+            <IconButton title="Confirm" Icon={Check} disabled={busyId === row.id} onClick={() => handleStatusChange(row, 'CONFIRMED')}
+              tone="text-brand-700 hover:bg-brand-50" />
           )}
-          {!isPatient() && row.status === 'CONFIRMED' && (
-            <>
-              {isDoctor() ? (
-                <button onClick={() => setPrescribing(row)} className="text-blue-600 hover:bg-blue-50 p-1 rounded" title="Complete visit and write prescription">
-                  <CheckBadgeIcon className="h-5 w-5" />
-                </button>
-              ) : (
-                actionButton(row, 'COMPLETED', CheckBadgeIcon, 'Mark completed', 'text-blue-600 hover:bg-blue-50')
-              )}
-              {actionButton(row, 'CANCELLED', XCircleIcon, 'Cancel', 'text-red-600 hover:bg-red-50')}
-            </>
+          {isDoctor() && row.status === 'CONFIRMED' && (
+            <IconButton title="Complete visit and write prescription" Icon={CheckCheck} onClick={() => setPrescribing(row)}
+              tone="text-brand-700 hover:bg-brand-50" />
           )}
-          {row.hasPrescription && (
-            <button onClick={() => setViewing(row.id)} className="text-purple-600 hover:bg-purple-50 p-1 rounded" title="View prescription">
-              <DocumentTextIcon className="h-5 w-5" />
-            </button>
+          {isDoctor() && isActive(row) && (
+            <IconButton title="Cancel" Icon={X} disabled={busyId === row.id} onClick={() => handleStatusChange(row, 'CANCELLED')}
+              tone="text-slate-600 hover:bg-red-50 hover:text-red-700" />
           )}
-          {isDoctor() && row.hasPrescription && (
-            <button onClick={() => setPrescribing(row)} className="text-gray-600 hover:bg-gray-100 p-1 rounded" title="Edit prescription">
-              <PencilSquareIcon className="h-5 w-5" />
-            </button>
-          )}
+          {row.hasPrescription && <IconButton title="View prescription" Icon={FileText} onClick={() => setViewing(row.id)} />}
+          {isDoctor() && row.hasPrescription && <IconButton title="Edit prescription" Icon={Pencil} onClick={() => setPrescribing(row)} />}
         </div>
-      )
-    }
+      ),
+    },
   ];
 
-  const filterOptions = [
-    { value: 'all', label: 'All Appointments', count: statusCounts.all },
-    { value: 'pending', label: 'Pending', count: statusCounts.pending },
-    { value: 'confirmed', label: 'Confirmed', count: statusCounts.confirmed },
-    { value: 'completed', label: 'Completed', count: statusCounts.completed },
-    { value: 'cancelled', label: 'Cancelled', count: statusCounts.cancelled }
-  ];
-
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  }
+  if (loading) return <Spinner />;
 
   return (
-    <div className="space-y-6">
+    <div>
       {rescheduling && (
-        <RescheduleDialog
-          appointment={rescheduling}
-          onClose={() => setRescheduling(null)}
-          onDone={(updated) => {
-            setAppointments((prev) => prev.map((apt) => (apt.id === updated.id ? updated : apt)));
-            setRescheduling(null);
-          }}
-        />
+        <RescheduleDialog appointment={rescheduling} onClose={() => setRescheduling(null)}
+          onDone={(updated) => { replace(updated); setRescheduling(null); }} />
       )}
       {prescribing && (
-        <PrescriptionDialog
-          appointment={prescribing}
-          onClose={() => setPrescribing(null)}
-          onSaved={() => { setPrescribing(null); fetchAppointments(); }}
-        />
+        <PrescriptionDialog appointment={prescribing} onClose={() => setPrescribing(null)}
+          onSaved={() => { setPrescribing(null); fetchAppointments(); }} />
       )}
       {viewing && <PrescriptionView appointmentId={viewing} onClose={closeViewing} />}
-      {/* Header */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="bg-white rounded-xl shadow-sm border border-gray-100 p-6"
+
+      <PageTitle
+        title={isPatient() ? 'My appointments' : 'My schedule'}
+        subtitle={isPatient() ? 'Reschedule, cancel or open a prescription.' : 'Confirm requests, complete visits and write prescriptions.'}
       >
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center">
-            <CalendarDaysIcon className="h-6 w-6 text-blue-600 mr-3" />
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">
-                {isPatient() ? 'My Appointments' : 'Appointment Management'}
-              </h1>
-              <p className="text-gray-600">
-                {isPatient() ? 'View and manage your appointments' : 'Confirm, complete or cancel patient appointments'}
-              </p>
-            </div>
-          </div>
-          {isPatient() && (
-            <Link to="/dashboard/make-appointment" className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-              Book New Appointment
-            </Link>
-          )}
-        </div>
-
-        {/* Status Filter Tabs */}
-        <div className="flex space-x-4 mb-6 overflow-x-auto">
-          {filterOptions.map((option) => (
-            <button
-              key={option.value}
-              onClick={() => setFilter(option.value)}
-              className={`flex items-center px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
-                filter === option.value
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
-            >
-              {option.label}
-              <span className={`ml-2 px-2 py-0.5 rounded-full text-xs ${
-                filter === option.value
-                  ? 'bg-blue-500 text-white'
-                  : 'bg-gray-200 text-gray-600'
-              }`}>
-                {option.count}
-              </span>
-            </button>
-          ))}
-        </div>
-
-        {/* Statistics Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {[
-            { label: 'Total', value: statusCounts.all, Icon: CalendarDaysIcon, colour: 'blue' },
-            { label: 'Pending', value: statusCounts.pending, Icon: ClockIcon, colour: 'yellow' },
-            { label: 'Confirmed', value: statusCounts.confirmed, Icon: UserIcon, colour: 'blue' },
-            { label: 'Completed', value: statusCounts.completed, Icon: CheckCircleIcon, colour: 'green' }
-          ].map(({ label, value, Icon, colour }) => (
-            <div key={label} className={`bg-${colour}-50 rounded-lg p-4`}>
-              <div className="flex items-center">
-                <Icon className={`h-8 w-8 text-${colour}-600 mr-3`} />
-                <div>
-                  <p className={`text-sm font-medium text-${colour}-600`}>{label}</p>
-                  <p className={`text-2xl font-bold text-${colour}-900`}>{value}</p>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </motion.div>
-
-      {/* Appointments Table */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2 }}
-        className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden"
-      >
-        {visible.length === 0 ? (
-          <div className="p-12 text-center text-gray-500">
-            <div className="text-4xl mb-3">📅</div>
-            No {filter === 'all' ? '' : filter} appointments yet.
-          </div>
-        ) : (
-          <DataTable
-            data={visible}
-            columns={columns}
-            title=""
-            searchable={true}
-          />
+        {isPatient() && (
+          <Link to="/dashboard/make-appointment" className="btn-primary"><CalendarPlus className="h-4 w-4" aria-hidden="true" /> Book appointment</Link>
         )}
-      </motion.div>
+      </PageTitle>
+
+      <section className="card">
+        <div className="flex flex-col gap-3 p-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="-mx-1 flex gap-1 overflow-x-auto px-1" role="tablist" aria-label="Filter by status">
+            {TABS.map((t) => (
+              <button key={t.key} role="tab" aria-selected={tab === t.key} onClick={() => setTab(t.key)}
+                className={`flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
+                  tab === t.key ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100'
+                }`}>
+                {t.label}
+                <span className={`rounded-full px-1.5 text-xs tabular-nums ${tab === t.key ? 'bg-white/20' : 'bg-slate-100 text-slate-600'}`}>
+                  {counts[t.key] || 0}
+                </span>
+              </button>
+            ))}
+          </div>
+          <label className="relative lg:w-72">
+            <span className="sr-only">Search appointments</span>
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" aria-hidden="true" />
+            <input type="search" value={query} onChange={(e) => setQuery(e.target.value)}
+              placeholder={isPatient() ? 'Search doctor or reason' : 'Search patient or reason'} className="input pl-9" />
+          </label>
+        </div>
+        <ServerTable
+          page={pageOf(visible, pageNo, PAGE_SIZE)}
+          columns={columns}
+          onPage={setPageNo}
+          empty={query ? 'Nothing matches that search.' : tab === 'upcoming' ? 'Nothing coming up.' : 'No appointments here.'}
+        />
+      </section>
     </div>
   );
 };

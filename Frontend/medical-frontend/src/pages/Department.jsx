@@ -1,8 +1,10 @@
+// Every department that has at least one doctor, from the live doctor list.
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { ArrowRight } from 'lucide-react';
 import { medicalService } from '../services/medicalService';
 import { departmentsFromDoctors } from '../utils/departments';
+import PageHeader from '../components/common/PageHeader';
 
 const Departments = () => {
   const [departments, setDepartments] = useState([]);
@@ -16,50 +18,32 @@ const Departments = () => {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="container mx-auto px-4 py-16">
-        <motion.h1
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="text-3xl font-bold text-gray-800 mb-2"
-        >
-          Medical Departments
-        </motion.h1>
-        <p className="text-gray-600 mb-8">Every department below has doctors you can book today.</p>
+    <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6">
+      <PageHeader eyebrow="Departments" title="Our departments" subtitle="Every department below has doctors you can book today." />
 
-        {loading ? (
-          <div className="text-center text-gray-500 py-12">Loading departments...</div>
-        ) : departments.length === 0 ? (
-          <div className="text-center text-gray-500 py-12">No departments listed yet.</div>
-        ) : (
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
-            {departments.map((dept, idx) => (
-              <motion.div
-                key={dept.name}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: idx * 0.05 }}
-                className="bg-white shadow rounded-xl p-8 text-slate-900 flex flex-col"
-              >
-                <div className="text-4xl mb-3">{dept.icon}</div>
-                <h2 className="text-xl font-semibold mb-2 text-slate-900">{dept.name}</h2>
-                <p className="text-gray-600 flex-1">{dept.description}</p>
-                <div className="flex items-center justify-between mt-6">
-                  <span className="text-sm text-gray-500">
-                    {dept.doctorCount} doctor{dept.doctorCount === 1 ? '' : 's'}
-                  </span>
-                  <Link
-                    to={`/doctors?department=${encodeURIComponent(dept.name)}`}
-                    className="text-sm font-medium text-blue-600 hover:text-blue-800"
-                  >
-                    See doctors →
-                  </Link>
-                </div>
-              </motion.div>
-            ))}
-          </div>
-        )}
-      </div>
+      {loading ? (
+        <p className="py-16 text-center text-slate-600">Loading departments…</p>
+      ) : departments.length === 0 ? (
+        <p className="py-16 text-center text-slate-600">No departments are listed yet.</p>
+      ) : (
+        <ul className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {departments.map(({ name, Icon, description, doctorCount }) => (
+            <li key={name} className="card flex flex-col p-6">
+              <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-50 text-brand-700">
+                <Icon className="h-5 w-5" strokeWidth={1.75} aria-hidden="true" />
+              </span>
+              <h2 className="mt-4 text-lg font-semibold text-slate-900">{name}</h2>
+              <p className="mt-1.5 flex-1 text-sm text-slate-600">{description}</p>
+              <div className="mt-5 flex items-center justify-between border-t border-slate-100 pt-4">
+                <span className="text-sm text-slate-600">{doctorCount} {doctorCount === 1 ? 'doctor' : 'doctors'}</span>
+                <Link to={`/doctors?department=${encodeURIComponent(name)}`} className="link inline-flex items-center gap-1 text-sm">
+                  See doctors <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                </Link>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 };

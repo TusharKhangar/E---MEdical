@@ -1,31 +1,50 @@
 // src/pages/MakeAppointment.jsx
-
-import React, { useState, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { useAuth } from '../context/AuthContext';
+// Booking in three steps on one page: doctor, day, time. ?doctorId=... preselects a doctor
+// (the "Book" buttons on the public pages link here).
+import React, { useEffect, useMemo, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import {
-  CalendarDaysIcon,
-  UserIcon,
-  PencilSquareIcon,
-  CheckCircleIcon,
-  AcademicCapIcon
-} from '@heroicons/react/24/outline';
+import { CalendarCheck } from 'lucide-react';
 import { medicalService, errorMessage } from '../services/medicalService';
+import DoctorAvatar from '../components/common/DoctorAvatar';
+import SlotPicker from '../components/appointments/SlotPicker';
+import { PageTitle } from '../components/dashboard/ui';
+import { addDaysIso, longDate, todayIso } from '../utils/format';
 
-const EMPTY_FORM = { department: '', doctorId: '', date: '', time: '', message: '' };
+const QUICK_DAYS = 14;
+
+const dayChip = (iso) => {
+  const d = new Date(`${iso}T00:00:00`);
+  return {
+    weekday: d.toLocaleDateString('en-GB', { weekday: 'short' }),
+    day: d.getDate(),
+    month: d.toLocaleDateString('en-GB', { month: 'short' }),
+  };
+};
+
+const Step = ({ n, title, children }) => (
+  <section className="card p-5 sm:p-6" aria-labelledby={`step-${n}`}>
+    <h2 id={`step-${n}`} className="flex items-center gap-3 text-sm font-semibold text-slate-900">
+      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-900 text-xs text-white">{n}</span>
+      {title}
+    </h2>
+    <div className="mt-5">{children}</div>
+  </section>
+);
 
 const MakeAppointment = () => {
-  const { user } = useAuth();
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(false);
+  const [searchParams] = useSearchParams();
   const [allDoctors, setAllDoctors] = useState([]);
-  const [availableSlots, setAvailableSlots] = useState([]);
+  const [department, setDepartment] = useState('');
+  const [doctorId, setDoctorId] = useState(searchParams.get('doctorId') || '');
+  const [date, setDate] = useState('');
+  const [time, setTime] = useState('');
+  const [message, setMessage] = useState('');
+  const [slots, setSlots] = useState([]);
   const [slotsLoading, setSlotsLoading] = useState(false);
-  const [formData, setFormData] = useState(EMPTY_FORM);
+  const [saving, setSaving] = useState(false);
 
-  // Doctor directory from the backend
   useEffect(() => {
     medicalService.getDoctors()
       .then(setAllDoctors)
@@ -33,301 +52,168 @@ const MakeAppointment = () => {
   }, []);
 
   const departments = useMemo(
-    () => [...new Set(allDoctors.map(d => d.specialization).filter(Boolean))].sort(),
+    () => [...new Set(allDoctors.map((d) => d.specialization).filter(Boolean))].sort(),
     [allDoctors]
   );
+  const doctors = department ? allDoctors.filter((d) => d.specialization === department) : allDoctors;
+  const doctor = allDoctors.find((d) => String(d.id) === String(doctorId)) || null;
+  const quickDays = useMemo(() => Array.from({ length: QUICK_DAYS }, (_, i) => addDaysIso(i)), []);
 
-  const doctors = useMemo(
-    () => (formData.department
-      ? allDoctors.filter(d => d.specialization === formData.department)
-      : allDoctors),
-    [allDoctors, formData.department]
-  );
-
-  const selectedDoctor = useMemo(
-    () => allDoctors.find(d => String(d.id) === String(formData.doctorId)) || null,
-    [allDoctors, formData.doctorId]
-  );
-
-  // Free slots for the chosen doctor and date
+  // Free times for the chosen doctor and day
   useEffect(() => {
-    if (!formData.doctorId || !formData.date) {
-      setAvailableSlots([]);
-      return;
+    setTime('');
+    if (!doctorId || !date) {
+      setSlots([]);
+      return undefined;
     }
     let cancelled = false;
     setSlotsLoading(true);
-    medicalService.getDoctorSlots(formData.doctorId, formData.date)
-      .then((result) => { if (!cancelled) setAvailableSlots(result.slots || []); })
-      .catch((error) => { if (!cancelled) toast.error(errorMessage(error, 'Could not load free slots')); })
+    medicalService.getDoctorSlots(doctorId, date)
+      .then((r) => { if (!cancelled) setSlots(r.slots || []); })
+      .catch((error) => { if (!cancelled) toast.error(errorMessage(error, 'Could not load free times')); })
       .finally(() => { if (!cancelled) setSlotsLoading(false); });
     return () => { cancelled = true; };
-  }, [formData.doctorId, formData.date]);
+  }, [doctorId, date]);
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => {
-      const next = { ...prev, [name]: value };
-      // Changing department or doctor invalidates the chosen doctor/time
-      if (name === 'department' && prev.doctorId) {
-        const stillValid = allDoctors.some(d => String(d.id) === String(prev.doctorId) && (!value || d.specialization === value));
-        if (!stillValid) { next.doctorId = ''; next.time = ''; }
-      }
-      if (name === 'doctorId' || name === 'date') next.time = '';
-      return next;
-    });
+  const chooseDepartment = (value) => {
+    setDepartment(value);
+    if (doctor && value && doctor.specialization !== value) setDoctorId('');
   };
 
-  const handleSubmit = async (e) => {
+  const submit = async (e) => {
     e.preventDefault();
-    if (!formData.doctorId || !formData.date || !formData.time) {
-      toast.error('Please choose a doctor, a date and a time');
+    if (!doctorId || !date || !time) {
+      toast.error('Choose a doctor, a day and a time first');
       return;
     }
-    setLoading(true);
+    setSaving(true);
     try {
-      await medicalService.bookAppointment({
-        doctorId: Number(formData.doctorId),
-        date: formData.date,
-        time: formData.time,
-        description: formData.message
-      });
-      toast.success('Appointment booked! The doctor will confirm it shortly.');
+      await medicalService.bookAppointment({ doctorId: Number(doctorId), date, time, description: message });
+      toast.success('Booked. The doctor will confirm it shortly, and we’ll e-mail you.');
       navigate('/dashboard/appointments');
     } catch (error) {
-      toast.error(errorMessage(error, 'Failed to book appointment. Please try again.'));
-      // The slot may have just been taken: refresh the list
+      toast.error(errorMessage(error, 'Could not book that time. Please try again.'));
       if (error.response?.status === 409) {
-        setFormData(prev => ({ ...prev, time: '' }));
-        medicalService.getDoctorSlots(formData.doctorId, formData.date)
-          .then((result) => setAvailableSlots(result.slots || []))
-          .catch(() => {});
+        // Someone took the slot a moment ago: refresh the list
+        setTime('');
+        medicalService.getDoctorSlots(doctorId, date).then((r) => setSlots(r.slots || [])).catch(() => {});
       }
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
-  };
-
-  // Get minimum date (today)
-  const getMinDate = () => new Date().toISOString().split('T')[0];
-
-  // Get maximum date (3 months from now)
-  const getMaxDate = () => {
-    const maxDate = new Date();
-    maxDate.setMonth(maxDate.getMonth() + 3);
-    return maxDate.toISOString().split('T')[0];
   };
 
   return (
-    <div className="space-y-6">
-      {/* Breadcrumb */}
-      <div className="flex items-center text-sm text-gray-500">
-        <span className="text-blue-600">Dashboard</span>
-        <span className="mx-2">/</span>
-        <span>Make Appointment</span>
-      </div>
+    <form onSubmit={submit}>
+      <PageTitle title="Book an appointment" subtitle="Pick a doctor, then a day and one of their free times." />
 
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="max-w-4xl mx-auto"
-      >
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-          {/* Header */}
-          <div className="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-purple-50">
-            <h3 className="text-xl font-semibold text-gray-900 flex items-center">
-              <CalendarDaysIcon className="h-6 w-6 mr-2 text-blue-600" />
-              Book Appointment
-            </h3>
-            <p className="text-sm text-gray-600 mt-1">
-              Schedule your appointment with our experienced doctors
-            </p>
-          </div>
+      <div className="grid gap-6 lg:grid-cols-[1fr_20rem]">
+        <div className="space-y-6">
+          <Step n={1} title="Choose a doctor">
+            <label htmlFor="book-department" className="label">Department</label>
+            <select id="book-department" name="department" value={department} onChange={(e) => chooseDepartment(e.target.value)}
+              className="input sm:w-72">
+              <option value="">All departments</option>
+              {departments.map((d) => <option key={d} value={d}>{d}</option>)}
+            </select>
 
-          {/* Form */}
-          <div className="p-6">
-            <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Patient Information */}
-              <div>
-                <h4 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
-                  <UserIcon className="h-5 w-5 mr-2" />
-                  Patient Information
-                </h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Full Name</label>
-                    <input
-                      type="text"
-                      value={`${user?.firstName || ''} ${user?.lastName || ''}`.trim()}
-                      readOnly
-                      className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-gray-700"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
-                    <input
-                      type="email"
-                      value={user?.email || ''}
-                      readOnly
-                      className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-gray-700"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Appointment Details */}
-              <div className="border-t pt-6">
-                <h4 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
-                  <CalendarDaysIcon className="h-5 w-5 mr-2" />
-                  Appointment Details
-                </h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Department</label>
-                    <select
-                      name="department"
-                      value={formData.department}
-                      onChange={handleInputChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    >
-                      <option value="">All departments</option>
-                      {departments.map(dept => (
-                        <option key={dept} value={dept}>{dept}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Doctor *</label>
-                    <select
-                      name="doctorId"
-                      value={formData.doctorId}
-                      onChange={handleInputChange}
-                      required
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      disabled={doctors.length === 0}
-                    >
-                      <option value="">{doctors.length ? 'Select Doctor' : 'No doctors available'}</option>
-                      {doctors.map(doctor => (
-                        <option key={doctor.id} value={doctor.id}>
-                          Dr. {doctor.firstName} {doctor.lastName}{doctor.specialization ? ` - ${doctor.specialization}` : ''}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Date *</label>
-                    <input
-                      type="date"
-                      name="date"
-                      value={formData.date}
-                      onChange={handleInputChange}
-                      required
-                      min={getMinDate()}
-                      max={getMaxDate()}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Time *</label>
-                    <select
-                      name="time"
-                      value={formData.time}
-                      onChange={handleInputChange}
-                      required
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      disabled={availableSlots.length === 0}
-                    >
-                      <option value="">{slotsLoading ? 'Loading...' : 'Select Time'}</option>
-                      {availableSlots.map(slot => (
-                        <option key={slot} value={slot}>{slot}</option>
-                      ))}
-                    </select>
-                    {formData.doctorId && formData.date && !slotsLoading && availableSlots.length === 0 && (
-                      <p className="text-sm text-red-600 mt-1">
-                        No free slots on this date. Please pick another day.
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Message */}
-              <div className="border-t pt-6">
-                <h4 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
-                  <PencilSquareIcon className="h-5 w-5 mr-2" />
-                  Reason for visit
-                </h4>
-                <textarea
-                  name="message"
-                  value={formData.message}
-                  onChange={handleInputChange}
-                  rows="4"
-                  maxLength={255}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="Please describe your symptoms, concerns, or reason for this appointment..."
-                />
-              </div>
-
-              {/* Selected Doctor Info */}
-              {selectedDoctor && (
-                <div className="border-t pt-6">
-                  <h4 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
-                    <AcademicCapIcon className="h-5 w-5 mr-2" />
-                    Selected Doctor
-                  </h4>
-                  <div className="bg-blue-50 rounded-lg p-4">
-                    <h5 className="font-semibold text-gray-900">Dr. {selectedDoctor.firstName} {selectedDoctor.lastName}</h5>
-                    <p className="text-sm text-gray-600">{selectedDoctor.specialization || 'General practice'}</p>
-                  </div>
+            <fieldset className="mt-4">
+              <legend className="sr-only">Doctor</legend>
+              {doctors.length === 0 ? (
+                <p className="text-sm text-slate-600">No doctors are taking appointments yet.</p>
+              ) : (
+                <div className="grid max-h-96 gap-2 overflow-y-auto pr-1 sm:grid-cols-2">
+                  {doctors.map((d) => {
+                    const selected = String(d.id) === String(doctorId);
+                    return (
+                      <label key={d.id}
+                        className={`flex cursor-pointer items-center gap-3 rounded-lg border p-3 transition-colors ${
+                          selected ? 'border-brand-600 bg-brand-50 ring-1 ring-brand-600' : 'border-slate-200 hover:border-slate-300'
+                        }`}>
+                        <input type="radio" name="doctorId" value={d.id} checked={selected}
+                          onChange={() => setDoctorId(String(d.id))} className="sr-only" />
+                        <DoctorAvatar doctor={d} />
+                        <span className="min-w-0">
+                          <span className="block truncate text-sm font-medium text-slate-900">Dr. {d.firstName} {d.lastName}</span>
+                          <span className="block truncate text-xs text-slate-600">{d.specialization || 'General practice'}</span>
+                        </span>
+                      </label>
+                    );
+                  })}
                 </div>
               )}
+            </fieldset>
+          </Step>
 
-              {/* Submit Button */}
-              <div className="flex justify-end space-x-4 pt-6 border-t">
-                <button
-                  type="button"
-                  className="px-6 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition duration-200"
-                  onClick={() => setFormData(EMPTY_FORM)}
-                >
-                  Reset
-                </button>
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition duration-200 flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {loading ? (
-                    <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                      Booking...
-                    </>
-                  ) : (
-                    <>
-                      <CheckCircleIcon className="h-4 w-4 mr-2" />
-                      Book Appointment
-                    </>
-                  )}
-                </button>
+          <Step n={2} title="Choose a day">
+            <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-2" role="group" aria-label="Next two weeks">
+              {quickDays.map((iso) => {
+                const c = dayChip(iso);
+                const selected = iso === date;
+                return (
+                  <button type="button" key={iso} onClick={() => setDate(iso)} aria-pressed={selected}
+                    aria-label={longDate(iso)}
+                    className={`flex w-14 shrink-0 flex-col items-center rounded-lg border py-2 text-xs transition-colors ${
+                      selected ? 'border-brand-700 bg-brand-700 text-white' : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
+                    }`}>
+                    <span>{c.weekday}</span>
+                    <span className={`text-lg font-semibold ${selected ? 'text-white' : 'text-slate-900'}`}>{c.day}</span>
+                    <span>{c.month}</span>
+                  </button>
+                );
+              })}
+            </div>
+            <div className="mt-3 flex items-center gap-3">
+              <label htmlFor="book-date" className="text-sm text-slate-600">Or pick another date</label>
+              <input id="book-date" type="date" name="date" value={date} min={todayIso()} max={addDaysIso(90)}
+                onChange={(e) => setDate(e.target.value)} className="input w-auto" />
+            </div>
+          </Step>
+
+          <Step n={3} title="Choose a time">
+            {!doctorId || !date ? (
+              <p className="text-sm text-slate-600">Choose a doctor and a day to see free times.</p>
+            ) : (
+              <SlotPicker slots={slots} value={time} onChange={setTime} loading={slotsLoading}
+                emptyText="No free times that day, or the doctor isn’t working. Try another day." />
+            )}
+            <div className="mt-6">
+              <label htmlFor="book-reason" className="label">Reason for the visit <span className="font-normal text-slate-600">(optional)</span></label>
+              <textarea id="book-reason" name="message" rows="3" maxLength={255} value={message}
+                onChange={(e) => setMessage(e.target.value)} className="input"
+                placeholder="Symptoms, how long you’ve had them, anything the doctor should know" />
+            </div>
+          </Step>
+        </div>
+
+        {/* Summary */}
+        <aside className="lg:sticky lg:top-8 lg:self-start">
+          <div className="card p-5">
+            <h2 className="text-sm font-semibold text-slate-900">Your appointment</h2>
+            <dl className="mt-4 space-y-3 text-sm">
+              <div className="flex justify-between gap-3">
+                <dt className="text-slate-600">Doctor</dt>
+                <dd className="text-right font-medium text-slate-900">{doctor ? `Dr. ${doctor.firstName} ${doctor.lastName}` : '–'}</dd>
               </div>
-            </form>
+              <div className="flex justify-between gap-3">
+                <dt className="text-slate-600">Day</dt>
+                <dd className="text-right font-medium text-slate-900">{date ? longDate(date) : '–'}</dd>
+              </div>
+              <div className="flex justify-between gap-3">
+                <dt className="text-slate-600">Time</dt>
+                <dd className="text-right font-medium text-slate-900">{time || '–'}</dd>
+              </div>
+            </dl>
+            <button type="submit" disabled={saving || !time} className="btn-primary mt-5 w-full py-2.5">
+              <CalendarCheck className="h-4 w-4" aria-hidden="true" /> {saving ? 'Booking…' : 'Book appointment'}
+            </button>
+            <p className="mt-3 text-xs text-slate-600">
+              The doctor confirms each request. You’ll get an e-mail, and a reminder the evening before.
+            </p>
           </div>
-        </div>
-
-        {/* Additional Info */}
-        <div className="mt-6 bg-gray-50 rounded-lg p-6">
-          <h4 className="font-medium text-gray-900 mb-3">Important Notes:</h4>
-          <ul className="text-sm text-gray-600 space-y-2">
-            <li>• Clinic hours are 9:00 to 17:00, closed 13:00 to 14:00</li>
-            <li>• Please arrive 15 minutes before your scheduled appointment</li>
-            <li>• Bring your ID and any relevant medical records</li>
-            <li>• You can cancel from My Appointments; the doctor confirms each booking</li>
-          </ul>
-        </div>
-      </motion.div>
-    </div>
+        </aside>
+      </div>
+    </form>
   );
 };
 

@@ -1,7 +1,7 @@
 // src/components/common/ErrorBoundary.jsx
 
 import React from 'react';
-import { ExclamationTriangleIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
+import { AlertTriangle, RotateCcw } from 'lucide-react';
 
 class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -56,21 +56,21 @@ class ErrorBoundary extends React.Component {
 
       // Default fallback UI
       return (
-        <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+        <div className="min-h-screen bg-canvas flex flex-col justify-center py-12 sm:px-6 lg:px-8">
           <div className="sm:mx-auto sm:w-full sm:max-w-md">
             <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
               <div className="text-center">
-                <ExclamationTriangleIcon className="mx-auto h-12 w-12 text-red-500" />
-                <h2 className="mt-4 text-lg font-medium text-gray-900">
+                <AlertTriangle className="mx-auto h-12 w-12 text-red-500" />
+                <h2 className="mt-4 text-lg font-medium text-slate-900">
                   {this.props.title || 'Something went wrong'}
                 </h2>
-                <p className="mt-2 text-sm text-gray-600">
+                <p className="mt-2 text-sm text-slate-600">
                   {this.props.message || 'We apologize for the inconvenience. An unexpected error has occurred.'}
                 </p>
                 
                 {import.meta.env.DEV && this.state.error && (
                   <details className="mt-4 text-left">
-                    <summary className="cursor-pointer text-sm text-gray-500 hover:text-gray-700">
+                    <summary className="cursor-pointer text-sm text-slate-600 hover:text-slate-700">
                       Error Details (Development Only)
                     </summary>
                     <div className="mt-2 p-3 bg-red-50 rounded border text-xs text-red-700 overflow-auto">
@@ -92,22 +92,22 @@ class ErrorBoundary extends React.Component {
                 <div className="mt-6 flex flex-col sm:flex-row gap-3">
                   <button
                     onClick={this.handleRetry}
-                    className="w-full flex justify-center items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                    className="w-full flex justify-center items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-brand-700 hover:bg-brand-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-500"
                   >
-                    <ArrowPathIcon className="h-4 w-4 mr-2" />
+                    <RotateCcw className="h-4 w-4 mr-2" />
                     Try Again
                   </button>
                   
                   <button
                     onClick={() => window.location.href = '/'}
-                    className="w-full flex justify-center px-4 py-2 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                    className="w-full flex justify-center px-4 py-2 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-slate-700 hover:bg-canvas focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-500"
                   >
                     Go Home
                   </button>
                 </div>
 
                 {this.state.eventId && (
-                  <p className="mt-4 text-xs text-gray-500">
+                  <p className="mt-4 text-xs text-slate-600">
                     Error ID: {this.state.eventId}
                   </p>
                 )}
@@ -153,7 +153,7 @@ export const ComponentErrorBoundary = ({ children, componentName }) => (
     fallback={(error, retry) => (
       <div className="bg-red-50 border border-red-200 rounded-lg p-4 m-4">
         <div className="flex">
-          <ExclamationTriangleIcon className="h-5 w-5 text-red-400" />
+          <AlertTriangle className="h-5 w-5 text-red-400" />
           <div className="ml-3">
             <h3 className="text-sm font-medium text-red-800">
               Component Error

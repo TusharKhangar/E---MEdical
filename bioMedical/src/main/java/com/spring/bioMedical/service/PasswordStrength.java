@@ -5,7 +5,7 @@ import com.nulabinc.zxcvbn.Zxcvbn;
 /** Password strength check shared by sign-up, staff onboarding and password reset. */
 public final class PasswordStrength {
 
-	public static final String TOO_WEAK_MESSAGE = "Your password is too weak.  Choose a stronger one.";
+	public static final String TOO_WEAK_MESSAGE = "This password is too weak. Try a longer one, for example three or four unrelated words.";
 
 	/** zxcvbn score from 0 (guessable) to 4 (very strong); 3 or more is accepted. */
 	private static final int MIN_SCORE = 3;

@@ -51,9 +51,9 @@ test('a patient books, then moves the appointment to another time', async ({ pag
 
   await page.goto('/dashboard/make-appointment');
   await page.locator('select[name="department"]').selectOption('Dermatology');
-  await page.locator('select[name="doctorId"]').selectOption({ label: `Dr. ${doctor.first} ${doctor.last} - Dermatology` });
+  await page.getByText(`Dr. ${doctor.first} ${doctor.last}`).click();
   await page.locator('input[name="date"]').fill(day);
-  await page.locator('select[name="time"]').selectOption('09:00');
+  await page.getByRole('group', { name: 'Free times' }).getByRole('button', { name: '09:00' }).click();
   await page.locator('textarea[name="message"]').fill('Itchy rash on both arms');
   await page.getByRole('button', { name: /book appointment/i }).click();
   await expect(page).toHaveURL(/\/dashboard\/appointments/);
@@ -88,6 +88,7 @@ test('the doctor confirms, completes the visit and writes a prescription', async
 test('the patient reads the prescription and downloads the PDF', async ({ page }) => {
   await signIn(page, patient.email, patient.password);
   await page.goto('/dashboard/appointments');
+  await page.getByRole('tab', { name: /completed/i }).click();
   await page.getByTitle('View prescription').first().click();
   await expect(page.getByText('Contact dermatitis')).toBeVisible();
   await expect(page.getByText('Cetirizine')).toBeVisible();

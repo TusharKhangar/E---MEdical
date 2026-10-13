@@ -10,7 +10,7 @@ test('a new patient signs up, confirms by e-mail, sets a password and signs in',
   await page.locator('input[name="lastName"]').fill('Iyer');
   await page.locator('input[name="email"]').fill(email);
   await page.locator('input[name="phoneNumber"]').fill('9812345678');
-  await page.locator('select[name="gender"]').selectOption('Female');
+  await page.locator('select[name="gender"]').selectOption('FEMALE');
   await page.locator('button[type="submit"]').click();
   await expect(page).toHaveURL(/\/login/);
 
