@@ -173,7 +173,7 @@ class HardeningIntegrationTest {
 	}
 
 	@Test
-	void signUpLinkIsNotExposedOutsideDemoMode() throws Exception {
+	void signUpNeverReturnsTheEmailedLink() throws Exception {
 		mockMvc.perform(post("/api/register").contentType(MediaType.APPLICATION_JSON).content(json(Map.of(
 				"email", "new@test.com", "firstName", "New", "lastName", "Person", "phoneNumber", "9876543210"))))
 				.andExpect(status().isOk())

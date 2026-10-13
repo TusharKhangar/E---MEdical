@@ -12,8 +12,6 @@ COPY Frontend/medical-frontend/package.json Frontend/medical-frontend/package-lo
 RUN npm ci --no-audit --no-fund
 COPY Frontend/medical-frontend/ ./
 # The API is served from the same origin, so no VITE_API_URL is needed
-ARG VITE_SHOW_DEMO_ACCOUNTS=false
-ENV VITE_SHOW_DEMO_ACCOUNTS=$VITE_SHOW_DEMO_ACCOUNTS
 RUN npm run build
 
 # ---- 2. Backend --------------------------------------------------------------

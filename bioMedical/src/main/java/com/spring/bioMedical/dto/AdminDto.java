@@ -1,6 +1,5 @@
 package com.spring.bioMedical.dto;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
 import com.spring.bioMedical.entity.User;
 
 import jakarta.validation.constraints.Email;
@@ -36,10 +35,6 @@ public class AdminDto {
     private String specialization;
     private String role;
     private String lastseen;
-
-    // Only in the response to adding staff, and only in demo mode
-    @JsonInclude(JsonInclude.Include.NON_NULL)
-    private String inviteLink;
 
     public AdminDto() {
     }

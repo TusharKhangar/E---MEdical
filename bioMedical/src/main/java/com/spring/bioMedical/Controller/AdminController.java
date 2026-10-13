@@ -25,7 +25,6 @@ import com.spring.bioMedical.entity.User;
 import com.spring.bioMedical.entity.Appointment;
 import com.spring.bioMedical.entity.ContactMessage;
 import com.spring.bioMedical.repository.ContactMessageRepository;
-import com.spring.bioMedical.service.DemoMode;
 import com.spring.bioMedical.exception.ApiException;
 import com.spring.bioMedical.service.AdminServiceImplementation;
 import com.spring.bioMedical.service.AppointmentServiceImplementation;
@@ -49,7 +48,6 @@ public class AdminController {
 	private final AppointmentServiceImplementation appointmentServiceImplementation;
 	private final EmailService emailService;
 	private final ContactMessageRepository contactMessages;
-	private final DemoMode demoMode;
 	private final AnalyticsService analyticsService;
 
 	@Value("${app.frontend-url:http://localhost:5173}")
@@ -57,12 +55,11 @@ public class AdminController {
 
 	@Autowired
 	public AdminController(AdminServiceImplementation obj, AppointmentServiceImplementation app, EmailService emailService,
-			ContactMessageRepository contactMessages, DemoMode demoMode, AnalyticsService analyticsService) {
+			ContactMessageRepository contactMessages, AnalyticsService analyticsService) {
 		this.adminServiceImplementation = obj;
 		this.appointmentServiceImplementation = app;
 		this.emailService = emailService;
 		this.contactMessages = contactMessages;
-		this.demoMode = demoMode;
 		this.analyticsService = analyticsService;
 	}
 
@@ -118,9 +115,6 @@ public class AdminController {
 		}
 		User user = adminServiceImplementation.findById(id)
 				.orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Account not found"));
-		if (demoMode.isProtectedAccount(user.getEmail())) {
-			throw new ApiException(HttpStatus.BAD_REQUEST, "The shared demo accounts can't be disabled.");
-		}
 		boolean enabled = Boolean.TRUE.equals(body.get("enabled"));
 		if (enabled && user.getPassword() == null) {
 			throw new ApiException(HttpStatus.BAD_REQUEST, "This person has not set a password yet.");
@@ -264,9 +258,7 @@ public class AdminController {
 		invite.setText("An administrator created an E-Medical account for you.\n"
 				+ "Choose your password here:\n" + link);
 		emailService.sendEmail(invite);
-		AdminDto created = new AdminDto(admin);
-		created.setInviteLink(demoMode.expose(link));
-		return created;
+		return new AdminDto(admin);
 	}
 
 	private List<AdminDto> accountsWithRole(String role) {
