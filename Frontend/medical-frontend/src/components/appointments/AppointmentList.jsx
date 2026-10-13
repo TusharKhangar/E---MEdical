@@ -11,20 +11,27 @@ import {
   ClockIcon,
   UserIcon,
   CheckBadgeIcon,
-  ArrowPathIcon
+  ArrowPathIcon,
+  DocumentTextIcon,
+  PencilSquareIcon
 } from '@heroicons/react/24/outline';
 import RescheduleDialog from './RescheduleDialog';
+import PrescriptionDialog from './PrescriptionDialog';
+import PrescriptionView from './PrescriptionView';
 import DataTable from '../common/DataTable';
 import StatusBadge from '../common/StatusBadge';
 import { getAppointmentsForRole, setAppointmentStatusForRole, errorMessage } from '../../services/medicalService';
 
 const AppointmentList = () => {
-  const { user, isPatient } = useAuth();
+  const { user, isPatient, isDoctor } = useAuth();
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
   const [busyId, setBusyId] = useState(null);
   const [rescheduling, setRescheduling] = useState(null);
+  const [prescribing, setPrescribing] = useState(null);
+  const [viewing, setViewing] = useState(null);
+  const closeViewing = useCallback(() => setViewing(null), []);
 
   const fetchAppointments = useCallback(async () => {
     try {
@@ -116,9 +123,25 @@ const AppointmentList = () => {
           )}
           {!isPatient() && row.status === 'CONFIRMED' && (
             <>
-              {actionButton(row, 'COMPLETED', CheckBadgeIcon, 'Mark completed', 'text-blue-600 hover:bg-blue-50')}
+              {isDoctor() ? (
+                <button onClick={() => setPrescribing(row)} className="text-blue-600 hover:bg-blue-50 p-1 rounded" title="Complete visit and write prescription">
+                  <CheckBadgeIcon className="h-5 w-5" />
+                </button>
+              ) : (
+                actionButton(row, 'COMPLETED', CheckBadgeIcon, 'Mark completed', 'text-blue-600 hover:bg-blue-50')
+              )}
               {actionButton(row, 'CANCELLED', XCircleIcon, 'Cancel', 'text-red-600 hover:bg-red-50')}
             </>
+          )}
+          {row.hasPrescription && (
+            <button onClick={() => setViewing(row.id)} className="text-purple-600 hover:bg-purple-50 p-1 rounded" title="View prescription">
+              <DocumentTextIcon className="h-5 w-5" />
+            </button>
+          )}
+          {isDoctor() && row.hasPrescription && (
+            <button onClick={() => setPrescribing(row)} className="text-gray-600 hover:bg-gray-100 p-1 rounded" title="Edit prescription">
+              <PencilSquareIcon className="h-5 w-5" />
+            </button>
           )}
         </div>
       )
@@ -153,6 +176,14 @@ const AppointmentList = () => {
           }}
         />
       )}
+      {prescribing && (
+        <PrescriptionDialog
+          appointment={prescribing}
+          onClose={() => setPrescribing(null)}
+          onSaved={() => { setPrescribing(null); fetchAppointments(); }}
+        />
+      )}
+      {viewing && <PrescriptionView appointmentId={viewing} onClose={closeViewing} />}
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}

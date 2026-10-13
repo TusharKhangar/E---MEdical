@@ -19,6 +19,7 @@ public class AppointmentDto {
     private String doctorName;
     private String department;
     private String status;
+    private boolean hasPrescription;
 
     public AppointmentDto() {
     }
@@ -35,6 +36,7 @@ public class AppointmentDto {
         this.doctorName = appointment.getDoctorName();
         this.department = appointment.getDepartment();
         this.status = appointment.getStatus() == null ? Appointment.PENDING : appointment.getStatus();
+        this.hasPrescription = Boolean.TRUE.equals(appointment.getHasPrescription());
     }
 
     public Appointment toEntity() {

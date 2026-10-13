@@ -18,6 +18,22 @@ export const medicalService = {
   changePassword: (currentPassword, newPassword) =>
     data(api.put('/profile/password', { currentPassword, newPassword })),
 
+  // ---- Prescriptions (patient, their doctor or an admin can read; the doctor writes) ----
+  getPrescription: (appointmentId) => data(api.get(`/appointments/${appointmentId}/prescription`)),
+  savePrescription: (appointmentId, prescription) =>
+    data(api.put(`/appointments/${appointmentId}/prescription`, prescription)),
+  downloadPrescriptionPdf: async (appointmentId) => {
+    const res = await api.get(`/appointments/${appointmentId}/prescription/pdf`, { responseType: 'blob' });
+    const url = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `prescription-${appointmentId}.pdf`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  },
+
   // ---- Patients ----
   bookAppointment: ({ doctorId, date, time, description }) =>
     data(api.post('/user/appointments', { doctorId, date, time, description })),

@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
 import { medicalService, errorMessage } from '../../services/medicalService';
+import PrescriptionDialog from '../appointments/PrescriptionDialog';
 
 const todayIso = () => new Date().toISOString().split('T')[0];
 
@@ -12,6 +13,7 @@ const DoctorDashboard = () => {
   const { user } = useAuth();
   const [appointments, setAppointments] = useState([]);
   const [busyId, setBusyId] = useState(null);
+  const [prescribing, setPrescribing] = useState(null);
 
   const load = () => medicalService.getDoctorAppointments()
     .then(setAppointments)
@@ -75,9 +77,9 @@ const DoctorDashboard = () => {
         </button>
       )}
       {a.status === 'CONFIRMED' && (
-        <button onClick={() => setStatus(a.id, 'COMPLETED')} disabled={busyId === a.id}
+        <button onClick={() => setPrescribing(a)} disabled={busyId === a.id}
           className="text-blue-600 hover:text-blue-800 text-xs bg-blue-50 px-2 py-1 rounded disabled:opacity-50">
-          Complete
+          Complete visit
         </button>
       )}
       {active(a) && (
@@ -116,6 +118,13 @@ const DoctorDashboard = () => {
 
   return (
     <div className="space-y-6">
+      {prescribing && (
+        <PrescriptionDialog
+          appointment={prescribing}
+          onClose={() => setPrescribing(null)}
+          onSaved={() => { setPrescribing(null); load(); }}
+        />
+      )}
       {/* Doctor Header */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
