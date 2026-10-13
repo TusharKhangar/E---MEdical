@@ -13,7 +13,8 @@ const MENU_BY_ROLE = {
     { path: '/dashboard/make-appointment', icon: '➕', label: 'Book Appointment' }
   ],
   ROLE_DOCTOR: [
-    { path: '/dashboard/appointments', icon: '📅', label: 'My Schedule' }
+    { path: '/dashboard/appointments', icon: '📅', label: 'My Schedule' },
+    { path: '/dashboard/availability', icon: '🕘', label: 'Working Hours' }
   ],
   ROLE_ADMIN: [
     { path: '/dashboard/appointments', icon: '📅', label: 'Appointments' },

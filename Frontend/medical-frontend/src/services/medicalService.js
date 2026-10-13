@@ -23,11 +23,18 @@ export const medicalService = {
     data(api.post('/user/appointments', { doctorId, date, time, description })),
   getMyAppointments: () => data(api.get('/user/appointments')),
   cancelMyAppointment: (id) => data(api.patch(`/user/appointments/${id}/cancel`)),
+  rescheduleMyAppointment: (id, date, time) =>
+    data(api.patch(`/user/appointments/${id}/reschedule`, { date, time })),
 
   // ---- Doctors ----
   getDoctorAppointments: () => data(api.get('/doctor/appointments')),
   setDoctorAppointmentStatus: (id, status) =>
     data(api.patch(`/doctor/appointments/${id}/status`, { status })),
+  getMySchedule: () => data(api.get('/doctor/schedule')),
+  updateMySchedule: (days) => data(api.put('/doctor/schedule', days)),
+  getMyLeave: () => data(api.get('/doctor/leave')),
+  addLeave: (date, reason) => data(api.post('/doctor/leave', { date, reason })),
+  removeLeave: (id) => data(api.delete(`/doctor/leave/${id}`)),
 
   // ---- Admins ----
   getStats: () => data(api.get('/admin/stats')),

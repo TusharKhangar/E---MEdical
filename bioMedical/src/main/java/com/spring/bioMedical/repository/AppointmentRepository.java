@@ -49,4 +49,12 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Long> 
 	List<String> findTakenTimes(@Param("doctorId") Long doctorId, @Param("date") String date);
 
 	long countByStatus(String status);
+
+	/** HQL: pending or confirmed appointments a doctor has on a date. */
+	@Query("""
+			select count(a) from Appointment a
+			where a.doctorId = :doctorId and a.date = :date
+			  and (a.status is null or a.status in ('PENDING', 'CONFIRMED'))
+			""")
+	long countActiveForDoctorOn(@Param("doctorId") Long doctorId, @Param("date") String date);
 }

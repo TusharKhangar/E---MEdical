@@ -2,6 +2,7 @@ package com.spring.bioMedical.Controller;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -67,6 +68,18 @@ public class UserController {
 				.orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Appointment not found"));
 		return ResponseEntity.ok(new AppointmentDto(
 				appointmentServiceImplementation.changeStatus(appointment, Appointment.CANCELLED)));
+	}
+
+	/** Move one of my appointments to another free slot with the same doctor. Body: {"date": "...", "time": "10:00"}. */
+	@PatchMapping("/appointments/{id}/reschedule")
+	public ResponseEntity<AppointmentDto> rescheduleAppointment(@PathVariable Long id, @RequestBody Map<String, String> body) {
+		User patient = adminServiceImplementation.findByEmail(getLoggedInUsername());
+		Appointment appointment = appointmentServiceImplementation.findById(id)
+				.filter(a -> patient.getEmail().equalsIgnoreCase(a.getEmail()))
+				.orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Appointment not found"));
+		User doctor = adminServiceImplementation.findDoctorById(appointment.getDoctorId());
+		return ResponseEntity.ok(new AppointmentDto(appointmentServiceImplementation.reschedule(
+				appointment, patient, doctor, body.get("date"), body.get("time"))));
 	}
 
 	@GetMapping("/profile")

@@ -10,8 +10,10 @@ import {
   XCircleIcon,
   ClockIcon,
   UserIcon,
-  CheckBadgeIcon
+  CheckBadgeIcon,
+  ArrowPathIcon
 } from '@heroicons/react/24/outline';
+import RescheduleDialog from './RescheduleDialog';
 import DataTable from '../common/DataTable';
 import StatusBadge from '../common/StatusBadge';
 import { getAppointmentsForRole, setAppointmentStatusForRole, errorMessage } from '../../services/medicalService';
@@ -22,6 +24,7 @@ const AppointmentList = () => {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
   const [busyId, setBusyId] = useState(null);
+  const [rescheduling, setRescheduling] = useState(null);
 
   const fetchAppointments = useCallback(async () => {
     try {
@@ -93,8 +96,18 @@ const AppointmentList = () => {
       title: 'Actions',
       render: (_, row) => (
         <div className="flex space-x-2">
-          {isPatient() && (row.status === 'PENDING' || row.status === 'CONFIRMED') &&
-            actionButton(row, 'CANCELLED', XCircleIcon, 'Cancel', 'text-red-600 hover:bg-red-50')}
+          {isPatient() && (row.status === 'PENDING' || row.status === 'CONFIRMED') && (
+            <>
+              <button
+                onClick={() => setRescheduling(row)}
+                className="text-blue-600 hover:bg-blue-50 p-1 rounded"
+                title="Reschedule"
+              >
+                <ArrowPathIcon className="h-5 w-5" />
+              </button>
+              {actionButton(row, 'CANCELLED', XCircleIcon, 'Cancel', 'text-red-600 hover:bg-red-50')}
+            </>
+          )}
           {!isPatient() && row.status === 'PENDING' && (
             <>
               {actionButton(row, 'CONFIRMED', CheckCircleIcon, 'Confirm', 'text-green-600 hover:bg-green-50')}
@@ -130,6 +143,16 @@ const AppointmentList = () => {
 
   return (
     <div className="space-y-6">
+      {rescheduling && (
+        <RescheduleDialog
+          appointment={rescheduling}
+          onClose={() => setRescheduling(null)}
+          onDone={(updated) => {
+            setAppointments((prev) => prev.map((apt) => (apt.id === updated.id ? updated : apt)));
+            setRescheduling(null);
+          }}
+        />
+      )}
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
