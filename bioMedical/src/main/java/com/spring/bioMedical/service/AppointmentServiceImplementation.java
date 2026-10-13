@@ -18,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.spring.bioMedical.entity.User;
 import com.spring.bioMedical.entity.Appointment;
 import com.spring.bioMedical.exception.ApiException;
+import com.spring.bioMedical.repository.AdminRepository;
 import com.spring.bioMedical.repository.AppointmentRepository;
 
 @Service
@@ -33,12 +34,13 @@ public class AppointmentServiceImplementation  {
 	public static final int BOOKING_WINDOW_DAYS = 90;
 
 	private final AppointmentRepository appointmentRepository;
+	private final AdminRepository userRepository;
 
-	//inject employee dao
-	@Autowired   //Adding bean id @Qualifier
-	public AppointmentServiceImplementation( AppointmentRepository obj)
+	@Autowired
+	public AppointmentServiceImplementation(AppointmentRepository appointmentRepository, AdminRepository userRepository)
 	{
-		appointmentRepository=obj;
+		this.appointmentRepository = appointmentRepository;
+		this.userRepository = userRepository;
 	}
 
 
@@ -98,6 +100,12 @@ public class AppointmentServiceImplementation  {
 		if (!LocalDateTime.of(day, LocalTime.parse(time)).isAfter(LocalDateTime.now())) {
 			throw new ApiException(HttpStatus.BAD_REQUEST, "That time has already passed. Please pick a later slot.");
 		}
+
+		// Two people clicking the same slot at the same moment would both pass the checks below and both
+		// insert. Locking the doctor's and the patient's rows (SELECT ... FOR UPDATE, in id order to avoid
+		// deadlocks) makes concurrent bookings for either of them wait their turn until this one commits.
+		userRepository.lockForBooking(List.of(doctor.getId(), patient.getId()));
+
 		if (appointmentRepository.isSlotTaken(doctor.getId(), date, time)) {
 			throw new ApiException(HttpStatus.CONFLICT, "That slot is already booked. Please choose another time.");
 		}
