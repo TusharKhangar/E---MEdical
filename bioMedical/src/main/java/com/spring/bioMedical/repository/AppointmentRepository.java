@@ -32,6 +32,14 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Long> 
 			""")
 	boolean isSlotTaken(@Param("doctorId") Long doctorId, @Param("date") String date, @Param("time") String time);
 
+	/** HQL: is this patient already booked (with any doctor) at this date and time? */
+	@Query("""
+			select count(a) > 0 from Appointment a
+			where lower(a.email) = lower(:email) and a.date = :date and a.time = :time
+			  and (a.status is null or a.status in ('PENDING', 'CONFIRMED'))
+			""")
+	boolean patientHasAppointmentAt(@Param("email") String email, @Param("date") String date, @Param("time") String time);
+
 	/** HQL: the times already taken for a doctor on a given day. */
 	@Query("""
 			select a.time from Appointment a

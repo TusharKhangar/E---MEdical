@@ -2,51 +2,36 @@ package com.spring.bioMedical.security;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-import java.security.Key;
+import javax.crypto.SecretKey;
+import java.nio.charset.StandardCharsets;
 import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.function.Function;
 
+/** Issues and checks the HS256-signed tokens the frontend sends as {@code Authorization: Bearer ...}. */
 @Component
 public class JwtUtil {
 
-    @Value("${jwt.secret}") // Read the secret key from application.properties
-    private String secret;
+    private final SecretKey signingKey;
+    private final long expiration;
 
-    @Value("${jwt.expiration}") // Read the expiration time from application.properties (in milliseconds)
-    private long expiration;
-
-    private Key getSigningKey() {
-        return Keys.hmacShaKeyFor(secret.getBytes());
+    public JwtUtil(@Value("${jwt.secret}") String secret, @Value("${jwt.expiration}") long expiration) {
+        // The raw bytes of jwt.secret are the HMAC key (at least 32 bytes), so existing secrets keep working
+        this.signingKey = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
+        this.expiration = expiration;
     }
 
     public String generateToken(String username) {
-        Map<String, Object> claims = new HashMap<>();
-        return createToken(claims, username);
-    }
-
-    private String createToken(Map<String, Object> claims, String subject) {
-        Key key = Keys.hmacShaKeyFor(secret.getBytes());
-        // Inside JwtUtil.generateToken
-        try {
-            return Jwts.builder()
-                    .setClaims(claims)
-                    .setSubject(subject)
-                    .setIssuedAt(new Date(System.currentTimeMillis()))
-                    .setExpiration(new Date(System.currentTimeMillis() + expiration))
-                    .signWith(getSigningKey(), SignatureAlgorithm.HS256)
-                    .compact();
-        } catch (Exception e) {
-            // Log the error or handle it as needed
-            System.err.println("Error generating JWT: " + e.getMessage());
-            return null; // Or throw a custom exception
-        }
+        long now = System.currentTimeMillis();
+        return Jwts.builder()
+                .subject(username)
+                .issuedAt(new Date(now))
+                .expiration(new Date(now + expiration))
+                .signWith(signingKey)
+                .compact();
     }
 
     public String extractUsername(String token) {
@@ -58,17 +43,16 @@ public class JwtUtil {
     }
 
     public <T> T extractClaim(String token, Function<Claims, T> claimsResolver) {
-        final Claims claims = extractAllClaims(token);
-        return claimsResolver.apply(claims);
+        return claimsResolver.apply(extractAllClaims(token));
     }
 
+    /** Throws if the token is malformed, tampered with or expired. */
     private Claims extractAllClaims(String token) {
-        Key key = Keys.hmacShaKeyFor(secret.getBytes());
         return Jwts.parser()
-                .setSigningKey(getSigningKey())
+                .verifyWith(signingKey)
                 .build()
-                .parseClaimsJws(token)
-                .getBody();
+                .parseSignedClaims(token)
+                .getPayload();
     }
 
     public Boolean isTokenExpired(String token) {

@@ -29,12 +29,13 @@ import com.spring.bioMedical.dto.RegistrationRequest;
 import com.spring.bioMedical.entity.User;
 import com.spring.bioMedical.security.JwtFilter;
 import com.spring.bioMedical.security.JwtUtil;
+import com.spring.bioMedical.service.DemoMode;
 import com.spring.bioMedical.service.EmailService;
 import com.spring.bioMedical.service.UserService;
 
 /** Web-layer tests for sign-up and e-mail confirmation, using the real security rules. */
 @WebMvcTest(RegisterController.class)
-@Import({ SecurityConfiguration.class, JwtFilter.class, AuthEntryPointJwt.class })
+@Import({ SecurityConfiguration.class, JwtFilter.class, AuthEntryPointJwt.class, DemoMode.class })
 @AutoConfigureMockMvc
 public class RegisterControllerTest {
 

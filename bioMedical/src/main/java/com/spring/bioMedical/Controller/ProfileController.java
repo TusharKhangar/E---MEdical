@@ -14,21 +14,30 @@ import com.spring.bioMedical.dto.UserProfileResponse;
 import com.spring.bioMedical.entity.User;
 import com.spring.bioMedical.exception.ApiException;
 import com.spring.bioMedical.service.AdminServiceImplementation;
+import com.spring.bioMedical.service.DemoMode;
 import com.spring.bioMedical.service.PasswordStrength;
+
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 
 import java.util.Map;
 
 /** The signed-in user's own profile, for every role. */
 @RestController
 @RequestMapping("/api/profile")
+@Tag(name = "My profile (any role)")
+@SecurityRequirement(name = "bearer")
 public class ProfileController {
 
 	private final AdminServiceImplementation adminServiceImplementation;
 	private final PasswordEncoder passwordEncoder;
+	private final DemoMode demoMode;
 
-	public ProfileController(AdminServiceImplementation adminServiceImplementation, PasswordEncoder passwordEncoder) {
+	public ProfileController(AdminServiceImplementation adminServiceImplementation, PasswordEncoder passwordEncoder,
+			DemoMode demoMode) {
 		this.adminServiceImplementation = adminServiceImplementation;
 		this.passwordEncoder = passwordEncoder;
+		this.demoMode = demoMode;
 	}
 
 	@GetMapping
@@ -69,6 +78,9 @@ public class ProfileController {
 	@PutMapping("/password")
 	public ResponseEntity<String> changePassword(@RequestBody Map<String, String> body) {
 		User user = me();
+		if (demoMode.isProtectedAccount(user.getEmail())) {
+			throw new ApiException(HttpStatus.BAD_REQUEST, "The shared demo accounts' passwords can't be changed.");
+		}
 		String current = body.get("currentPassword");
 		String next = body.get("newPassword");
 		if (current == null || user.getPassword() == null || !passwordEncoder.matches(current, user.getPassword())) {

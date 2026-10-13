@@ -1,9 +1,12 @@
 package com.spring.bioMedical.dto;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.spring.bioMedical.entity.User;
 
 import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -21,10 +24,10 @@ public class AdminDto {
     @NotEmpty(message = "Please provide an e-mail")
     private String email;
 
-    @NotEmpty(message = "Please provide a first name")
+    @NotBlank(message = "Please provide a first name")
     private String firstName;
 
-    @NotEmpty(message = "Please provide a last name")
+    @NotBlank(message = "Please provide a last name")
     private String lastName;
 
     private boolean enabled;
@@ -33,6 +36,10 @@ public class AdminDto {
     private String specialization;
     private String role;
     private String lastseen;
+
+    // Only in the response to adding staff, and only in demo mode
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private String inviteLink;
 
     public AdminDto() {
     }

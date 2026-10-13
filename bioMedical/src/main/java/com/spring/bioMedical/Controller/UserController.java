@@ -26,6 +26,8 @@ import jakarta.validation.Valid;
 /** Endpoints for patients (ROLE_USER). */
 @RestController
 @RequestMapping("/api/user")
+@io.swagger.v3.oas.annotations.tags.Tag(name = "Patients (ROLE_USER)")
+@io.swagger.v3.oas.annotations.security.SecurityRequirement(name = "bearer")
 public class UserController {
 
 	private static final Logger logger = LoggerFactory.getLogger(UserController.class);

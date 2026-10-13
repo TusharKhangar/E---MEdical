@@ -6,7 +6,9 @@ import lombok.Getter;
 import lombok.Setter;
 
 import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.Pattern;
 
 /** Patient sign-up form. The password is chosen later, from the link in the confirmation e-mail. */
@@ -18,10 +20,12 @@ public class RegistrationRequest {
     @NotEmpty(message = "Please provide an e-mail")
     private String email;
 
-    @NotEmpty(message = "Please provide your first name")
+    @NotBlank(message = "Please provide your first name")
+    @Size(max = 60, message = "First name is too long")
     private String firstName;
 
-    @NotEmpty(message = "Please provide your last name")
+    @NotBlank(message = "Please provide your last name")
+    @Size(max = 60, message = "Last name is too long")
     private String lastName;
 
     private String gender;

@@ -101,6 +101,10 @@ public class AppointmentServiceImplementation  {
 		if (appointmentRepository.isSlotTaken(doctor.getId(), date, time)) {
 			throw new ApiException(HttpStatus.CONFLICT, "That slot is already booked. Please choose another time.");
 		}
+		if (appointmentRepository.patientHasAppointmentAt(patient.getEmail(), date, time)) {
+			throw new ApiException(HttpStatus.CONFLICT,
+					"You already have an appointment at " + time + " on that day. Please choose another time.");
+		}
 
 		Appointment appointment = new Appointment();
 		appointment.setName(patient.getFirstName() + " " + patient.getLastName());
