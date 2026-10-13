@@ -5,7 +5,7 @@ vi.mock('./api', () => ({
 }));
 
 import api from './api';
-import { errorMessage, getAppointmentsForRole, setAppointmentStatusForRole } from './medicalService';
+import { errorMessage, getAppointmentsForRole, medicalService, setAppointmentStatusForRole } from './medicalService';
 
 describe('errorMessage', () => {
   it('uses the plain-text body the backend sends', () => {
@@ -48,5 +48,23 @@ describe('role-based appointment calls', () => {
       ['/doctor/appointments/7/status', { status: 'CONFIRMED' }],
       ['/admin/appointments/7/status', { status: 'COMPLETED' }]
     ]);
+  });
+});
+
+describe('server-side search', () => {
+  beforeEach(() => {
+    vi.mocked(api.get).mockReset().mockResolvedValue({ data: { content: [], totalElements: 0 } });
+  });
+
+  it('only sends the filters the user actually set', async () => {
+    await medicalService.searchAppointments({ q: '', status: 'PENDING', from: undefined, to: null, page: 0, size: 20 });
+    expect(api.get).toHaveBeenCalledWith('/admin/appointments/search', {
+      params: { status: 'PENDING', page: 0, size: 20 }
+    });
+  });
+
+  it('asks for accounts by role', async () => {
+    await medicalService.searchAccounts({ role: 'DOCTOR', q: 'cardio' });
+    expect(api.get).toHaveBeenCalledWith('/admin/accounts', { params: { role: 'DOCTOR', q: 'cardio' } });
   });
 });

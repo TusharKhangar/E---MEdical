@@ -36,6 +36,8 @@ import AppointmentList from '../components/appointments/AppointmentList';
 import MakeAppointment from '../pages/MakeAppointment';
 import MyProfile from '../components/dashboard/MyProfile';
 import MessagesInbox from '../components/dashboard/MessagesInbox';
+import Analytics from '../components/dashboard/Analytics';
+import DoctorAvailability from '../components/dashboard/DoctorAvailability';
 
 const LoadingSpinner = () => (
   <div className="flex justify-center items-center min-h-screen">
@@ -100,6 +102,12 @@ const AppRouter = () => {
         <Route path="admin-details" element={adminOnly(<AdminDetails />)} />
         <Route path="add-admin" element={adminOnly(<AddAdminForm />)} />
         <Route path="messages" element={adminOnly(<MessagesInbox />)} />
+        <Route path="analytics" element={adminOnly(<Analytics />)} />
+
+        {/* Doctor: working hours and days off */}
+        <Route path="availability" element={
+          <ProtectedRoute requiredRole={USER_ROLES.DOCTOR}><DoctorAvailability /></ProtectedRoute>
+        } />
 
         {/* Account */}
         <Route path="my-profile" element={<MyProfile />} />

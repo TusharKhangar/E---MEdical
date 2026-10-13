@@ -1,9 +1,10 @@
 // src/components/dashboard/PatientDashboard.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
 import { medicalService, errorMessage } from '../../services/medicalService';
+import PrescriptionView from '../appointments/PrescriptionView';
 
 const HEALTH_TIPS = [
   { id: 1, title: 'Stay Hydrated', tip: 'Drink at least 8 glasses of water daily to maintain good health.', icon: '💧' },
@@ -17,6 +18,8 @@ const PatientDashboard = () => {
   const { user } = useAuth();
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [viewing, setViewing] = useState(null);
+  const closeViewing = useCallback(() => setViewing(null), []);
 
   useEffect(() => {
     medicalService.getMyAppointments()
@@ -95,12 +98,18 @@ const PatientDashboard = () => {
             Cancel
           </button>
         )}
+        {appointment.hasPrescription && (
+          <button onClick={() => setViewing(appointment.id)} className="text-purple-600 hover:text-purple-800 text-xs font-medium">
+            Prescription
+          </button>
+        )}
       </div>
     </div>
   );
 
   return (
     <div className="space-y-6">
+      {viewing && <PrescriptionView appointmentId={viewing} onClose={closeViewing} />}
       {/* Welcome Header */}
       <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-xl p-6 text-white">
         <div className="flex items-center justify-between">

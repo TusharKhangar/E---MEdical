@@ -20,13 +20,14 @@ A hospital appointment platform where **patients** book doctors, **doctors** man
 
 ## What it does
 
-- **Patients** register with their e-mail, confirm it through a one-time link, choose a password, browse doctors by department, see free half-hour slots and book. They can track and cancel their appointments.
-- **Doctors** see the appointments booked with them, confirm, complete or cancel each one, and keep their profile and specialization up to date.
-- **Administrators** get live counts, confirm bookings on behalf of doctors, manage every appointment, list patients, doctors and admins, enable or disable accounts, and onboard new staff, who receive an e-mail link to set their own password.
+- **Patients** register with their e-mail, confirm it through a one-time link, choose a password, browse doctors by department, see free hourly slots and book. They can track, reschedule and cancel appointments, and view or download their prescription as a PDF after the visit.
+- **Doctors** set their weekly working hours and days off, confirm or cancel the appointments booked with them, and complete a visit by writing notes and a prescription (diagnosis, medicines, follow-up date).
+- **Administrators** get live counts and an analytics page (bookings per day, status mix, departments, busiest slots and doctors), search and page through every appointment and account on the server, confirm bookings on behalf of doctors, manage every appointment, list patients, doctors and admins, enable or disable accounts, and onboard new staff, who receive an e-mail link to set their own password.
+- **E-mails** go out when an appointment is booked, confirmed, moved, cancelled or completed, and a scheduled job reminds each patient the evening before their visit (once per appointment, even across restarts).
 - **Everyone** can change their password; forgotten passwords are reset through an e-mailed, single-use link.
 - **Visitors** browse live departments and doctors, see real clinic numbers on the home page, and send messages through the Contact page, which land in an admin inbox.
 
-Business rules live in the service layer: slots are 09:00 to 17:00 on the hour (closed 13:00 to 14:00), no double booking per doctor, no patient booked twice at the same time, no bookings in the past or more than 90 days ahead, and status moves only `PENDING → CONFIRMED → COMPLETED` or to `CANCELLED`. Five wrong passwords lock an e-mail for 15 minutes.
+Business rules live in the service layer: slots follow each doctor's working hours (09:00 to 18:00 with a 13:00 lunch break by default) and skip their days off, a doctor can't take a day off that still has appointments, no double booking per doctor (enforced with row locks, so two people clicking the same slot at once can't both get it), no patient booked twice at the same time, no bookings in the past or more than 90 days ahead, and status moves only `PENDING → CONFIRMED → COMPLETED` or to `CANCELLED`. Five wrong passwords lock an e-mail for 15 minutes.
 
 ## Architecture
 
@@ -54,7 +55,7 @@ In production the React build is packaged inside the Spring Boot jar and served 
 | Frontend | React 18, React Router 6, Vite 5, Tailwind CSS, Axios, Framer Motion, react-hot-toast |
 | Database | MySQL 8 or PostgreSQL 16 (H2 in-memory for tests) |
 | Delivery | Docker multi-stage build, docker-compose, GitHub Actions CI, Render blueprint, OpenAPI / Swagger UI |
-| Tests | JUnit 5, MockMvc, Spring Boot integration tests on H2 (33 tests); Vitest + Testing Library (13 tests) |
+| Tests | JUnit 5, MockMvc, Spring Boot integration tests on H2 (53 tests); Vitest + Testing Library (17 tests) |
 
 ## Run it locally
 
@@ -115,6 +116,7 @@ All settings come from environment variables (see [`.env.example`](.env.example)
 | `SEED_DEMO_DATA` | Create demo accounts on an empty database | `false` |
 | `DEMO_MODE` | Return e-mailed links in responses and protect demo accounts (public demos only) | `false` |
 | `LOGIN_MAX_FAILURES`, `LOGIN_LOCK_MINUTES` | Sign-in lockout | `5`, `15` |
+| `REMINDERS_ENABLED`, `REMINDERS_CRON`, `APP_TIME_ZONE` | Day-before reminder e-mails | `true`, `0 0 18 * * *`, `Asia/Kolkata` |
 | `PORT` | HTTP port | `8080` |
 
 ## API
@@ -135,9 +137,17 @@ All endpoints are under `/api`. Protected ones need `Authorization: Bearer <jwt>
 | PUT | `/profile/password` | any role | Change password |
 | GET, POST | `/user/appointments` | patient | List own or book |
 | PATCH | `/user/appointments/{id}/cancel` | patient | Cancel own |
+| PATCH | `/user/appointments/{id}/reschedule` | patient | Move to another free slot |
 | GET | `/doctor/appointments` | doctor | Appointments booked with me |
 | PATCH | `/doctor/appointments/{id}/status` | doctor | Confirm, complete or cancel |
+| GET, PUT | `/doctor/schedule` | doctor | Weekly working hours |
+| GET, POST, DELETE | `/doctor/leave`, `/doctor/leave/{id}` | doctor | Days off |
+| GET, PUT | `/appointments/{id}/prescription` | patient, doctor, admin (PUT: doctor) | Visit notes and prescription |
+| GET | `/appointments/{id}/prescription/pdf` | patient, doctor, admin | Prescription as a PDF |
 | GET | `/admin/stats` | admin | Dashboard counts |
+| GET | `/admin/analytics?days=30` | admin | Grouped numbers for the charts |
+| GET | `/admin/appointments/search?q=&status=&doctorId=&from=&to=&sort=&page=&size=` | admin | Server-side search and paging |
+| GET | `/admin/accounts?role=USER\|DOCTOR\|ADMIN&q=&page=&size=` | admin | Server-side account search |
 | GET | `/admin/users`, `/admin/doctors`, `/admin/admins` | admin | Account lists |
 | POST | `/admin/doctors`, `/admin/admins` | admin | Invite staff by e-mail |
 | PATCH | `/admin/users/{id}/enabled` | admin | Enable or disable an account |
@@ -152,17 +162,19 @@ Errors are returned as plain text with a matching HTTP status (`400` validation,
 ## Tests
 
 ```bash
-cd bioMedical && ./mvnw test            # 33 backend tests
-cd Frontend/medical-frontend && npm test  # 13 frontend tests (Vitest + Testing Library)
+cd bioMedical && ./mvnw test            # 53 backend tests
+cd Frontend/medical-frontend && npm test  # 17 frontend tests (Vitest + Testing Library)
 ```
 
 Backend:
 - `RegisterControllerTest`: web-layer tests for sign-up and confirmation with the real security filter chain.
 - `AppointmentFlowIntegrationTest`: full HTTP flows on an in-memory database: register → confirm → log in, admin invites a doctor who sets a password, booking with slot conflicts and validation, who may cancel what, role enforcement, forgot/reset password, profile update.
 - `HardeningIntegrationTest`: error codes (400/401/403/404), a patient can't be booked twice at once, login lockout, contact form and its rate limit, public stats, OpenAPI docs and security headers.
+- `ConcurrentBookingIntegrationTest`: 20 threads book the same slot at once; exactly one wins.
+- `ScheduleIntegrationTest`, `PrescriptionIntegrationTest`, `NotificationIntegrationTest`, `AdminInsightsIntegrationTest`: working hours and days off, rescheduling, prescriptions and their PDF, who may read them, which e-mail goes to whom, reminders sent once, analytics numbers and server-side search.
 - `DemoModeIntegrationTest` and `LoginAttemptServiceTest`: demo links, protected demo accounts, lockout window with a controllable clock.
 
-Frontend: route guarding by role, the role-aware sidebar, the API error and role helpers, and department grouping.
+Frontend: the server-side pager, route guarding by role, the role-aware sidebar, the API error and role helpers, and department grouping.
 
 CI runs the backend tests, the frontend lint, tests and build, and a Docker image build on every push.
 

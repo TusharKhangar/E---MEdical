@@ -4,6 +4,10 @@ import api from './api';
 
 const data = (promise) => promise.then((res) => res.data);
 
+// Drop empty filters so the query string only carries what the user actually chose
+const clean = (params = {}) =>
+  Object.fromEntries(Object.entries(params).filter(([, v]) => v !== undefined && v !== null && v !== ''));
+
 export const medicalService = {
   // ---- Public (no login needed) ----
   getDoctors: (specialization) =>
@@ -18,16 +22,39 @@ export const medicalService = {
   changePassword: (currentPassword, newPassword) =>
     data(api.put('/profile/password', { currentPassword, newPassword })),
 
+  // ---- Prescriptions (patient, their doctor or an admin can read; the doctor writes) ----
+  getPrescription: (appointmentId) => data(api.get(`/appointments/${appointmentId}/prescription`)),
+  savePrescription: (appointmentId, prescription) =>
+    data(api.put(`/appointments/${appointmentId}/prescription`, prescription)),
+  downloadPrescriptionPdf: async (appointmentId) => {
+    const res = await api.get(`/appointments/${appointmentId}/prescription/pdf`, { responseType: 'blob' });
+    const url = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `prescription-${appointmentId}.pdf`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  },
+
   // ---- Patients ----
   bookAppointment: ({ doctorId, date, time, description }) =>
     data(api.post('/user/appointments', { doctorId, date, time, description })),
   getMyAppointments: () => data(api.get('/user/appointments')),
   cancelMyAppointment: (id) => data(api.patch(`/user/appointments/${id}/cancel`)),
+  rescheduleMyAppointment: (id, date, time) =>
+    data(api.patch(`/user/appointments/${id}/reschedule`, { date, time })),
 
   // ---- Doctors ----
   getDoctorAppointments: () => data(api.get('/doctor/appointments')),
   setDoctorAppointmentStatus: (id, status) =>
     data(api.patch(`/doctor/appointments/${id}/status`, { status })),
+  getMySchedule: () => data(api.get('/doctor/schedule')),
+  updateMySchedule: (days) => data(api.put('/doctor/schedule', days)),
+  getMyLeave: () => data(api.get('/doctor/leave')),
+  addLeave: (date, reason) => data(api.post('/doctor/leave', { date, reason })),
+  removeLeave: (id) => data(api.delete(`/doctor/leave/${id}`)),
 
   // ---- Admins ----
   getStats: () => data(api.get('/admin/stats')),
@@ -41,6 +68,11 @@ export const medicalService = {
   addAdmin: (admin) => data(api.post('/admin/admins', admin)),
   setUserEnabled: (id, enabled) => data(api.patch(`/admin/users/${id}/enabled`, { enabled })),
   getMessages: () => data(api.get('/admin/messages')),
+  // Server-side search: { q, status, doctorId, from, to, sort, page, size } -> { content, page, totalElements, totalPages }
+  searchAppointments: (params) => data(api.get('/admin/appointments/search', { params: clean(params) })),
+  // { role: 'USER' | 'DOCTOR' | 'ADMIN', q, page, size }
+  searchAccounts: (params) => data(api.get('/admin/accounts', { params: clean(params) })),
+  getAnalytics: (days = 30) => data(api.get('/admin/analytics', { params: { days } })),
   setMessageHandled: (id, handled) => data(api.patch(`/admin/messages/${id}`, { handled })),
 };
 

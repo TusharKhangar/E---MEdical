@@ -60,6 +60,14 @@ public class Appointment {
 	@Column(name = "status")
 	private String status = PENDING;
 
+	// Set once the doctor saves a prescription, so lists can show it without an extra query per row
+	@Column(name = "has_prescription")
+	private Boolean hasPrescription;
+
+	// Set when the day-before reminder e-mail has gone out, so it is never sent twice
+	@Column(name = "reminder_sent")
+	private Boolean reminderSent;
+
 	@Override
 	public String toString() {
 		return "Appointment [id=" + id + ", name=" + name + ", email=" + email + ", date=" + date + ", time=" + time

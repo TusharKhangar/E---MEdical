@@ -11,6 +11,8 @@ import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,21 +28,22 @@ public class AppointmentServiceImplementation  {
 
 	private static final Logger logger = LoggerFactory.getLogger(AppointmentServiceImplementation.class);
 
-	/** Clinic opening hours: hourly slots from 09:00 to 17:00, closed 13:00-14:00 for lunch. */
-	public static final List<String> TIME_SLOTS = List.of("09:00", "10:00", "11:00", "12:00", "14:00", "15:00",
-			"16:00", "17:00");
-
 	/** How far ahead patients can book. */
 	public static final int BOOKING_WINDOW_DAYS = 90;
 
 	private final AppointmentRepository appointmentRepository;
 	private final AdminRepository userRepository;
+	private final ScheduleService scheduleService;
+	private final NotificationService notifications;
 
 	@Autowired
-	public AppointmentServiceImplementation(AppointmentRepository appointmentRepository, AdminRepository userRepository)
+	public AppointmentServiceImplementation(AppointmentRepository appointmentRepository, AdminRepository userRepository,
+			ScheduleService scheduleService, NotificationService notifications)
 	{
 		this.appointmentRepository = appointmentRepository;
 		this.userRepository = userRepository;
+		this.scheduleService = scheduleService;
+		this.notifications = notifications;
 	}
 
 
@@ -73,11 +76,11 @@ public class AppointmentServiceImplementation  {
 		appointmentRepository.deleteById(id);
 	}
 
-	/** Free slots for a doctor on a date; past slots for today are left out. */
+	/** Free slots for a doctor on a date: their working hours, minus leave, booked and past slots. */
 	public List<String> availableSlots(Long doctorId, String date) {
 		LocalDate day = parseDate(date);
 		Set<String> taken = Set.copyOf(appointmentRepository.findTakenTimes(doctorId, date));
-		return TIME_SLOTS.stream()
+		return scheduleService.workingSlots(doctorId, day).stream()
 				.filter(slot -> !taken.contains(slot))
 				.filter(slot -> LocalDateTime.of(day, LocalTime.parse(slot)).isAfter(LocalDateTime.now()))
 				.toList();
@@ -88,14 +91,58 @@ public class AppointmentServiceImplementation  {
 	 */
 	@Transactional
 	public Appointment book(User patient, User doctor, String date, String time, String description) {
+		checkSlot(patient, doctor, date, time);
+
+		Appointment appointment = new Appointment();
+		appointment.setName(patient.getFirstName() + " " + patient.getLastName());
+		appointment.setEmail(patient.getEmail());
+		appointment.setDoctorId(doctor.getId());
+		appointment.setDoctorName("Dr. " + doctor.getFirstName() + " " + doctor.getLastName());
+		appointment.setDepartment(doctor.getSpecialization());
+		appointment.setDate(date);
+		appointment.setTime(time);
+		appointment.setDescription(description);
+		appointment.setStatus(Appointment.PENDING);
+		appointment.setRegtime(LocalDateTime.now().withNano(0).toString());
+		Appointment saved = appointmentRepository.save(appointment);
+		notifications.bookingReceived(saved);
+		return saved;
+	}
+
+	/**
+	 * Moves a pending or confirmed appointment to another free slot with the same doctor. It goes back
+	 * to PENDING, because the doctor has to accept the new time.
+	 */
+	@Transactional
+	public Appointment reschedule(Appointment appointment, User patient, User doctor, String date, String time) {
+		if (!appointment.isActive()) {
+			throw new ApiException(HttpStatus.BAD_REQUEST,
+					"Only pending or confirmed appointments can be rescheduled.");
+		}
+		if (date.equals(appointment.getDate()) && time.equals(appointment.getTime())) {
+			throw new ApiException(HttpStatus.BAD_REQUEST, "That is already the time of this appointment.");
+		}
+		checkSlot(patient, doctor, date, time);
+		appointment.setDate(date);
+		appointment.setTime(time);
+		appointment.setStatus(Appointment.PENDING);
+		appointment.setReminderSent(false);
+		Appointment saved = appointmentRepository.save(appointment);
+		notifications.rescheduled(saved);
+		return saved;
+	}
+
+	/** Every rule a new booking or a new time must pass. Call inside a transaction. */
+	private void checkSlot(User patient, User doctor, String date, String time) {
 		LocalDate day = parseDate(date);
 		LocalDate today = LocalDate.now();
 		if (day.isBefore(today) || day.isAfter(today.plusDays(BOOKING_WINDOW_DAYS))) {
 			throw new ApiException(HttpStatus.BAD_REQUEST,
 					"Please choose a date between today and " + BOOKING_WINDOW_DAYS + " days from now.");
 		}
-		if (!TIME_SLOTS.contains(time)) {
-			throw new ApiException(HttpStatus.BAD_REQUEST, "Please choose one of the available time slots.");
+		if (!scheduleService.workingSlots(doctor.getId(), day).contains(time)) {
+			throw new ApiException(HttpStatus.BAD_REQUEST,
+					"The doctor isn't working at that time. Please choose one of the available time slots.");
 		}
 		if (!LocalDateTime.of(day, LocalTime.parse(time)).isAfter(LocalDateTime.now())) {
 			throw new ApiException(HttpStatus.BAD_REQUEST, "That time has already passed. Please pick a later slot.");
@@ -113,19 +160,6 @@ public class AppointmentServiceImplementation  {
 			throw new ApiException(HttpStatus.CONFLICT,
 					"You already have an appointment at " + time + " on that day. Please choose another time.");
 		}
-
-		Appointment appointment = new Appointment();
-		appointment.setName(patient.getFirstName() + " " + patient.getLastName());
-		appointment.setEmail(patient.getEmail());
-		appointment.setDoctorId(doctor.getId());
-		appointment.setDoctorName("Dr. " + doctor.getFirstName() + " " + doctor.getLastName());
-		appointment.setDepartment(doctor.getSpecialization());
-		appointment.setDate(date);
-		appointment.setTime(time);
-		appointment.setDescription(description);
-		appointment.setStatus(Appointment.PENDING);
-		appointment.setRegtime(LocalDateTime.now().withNano(0).toString());
-		return appointmentRepository.save(appointment);
 	}
 
 	/**
@@ -134,6 +168,12 @@ public class AppointmentServiceImplementation  {
 	 */
 	@Transactional
 	public Appointment changeStatus(Appointment appointment, String newStatus) {
+		return changeStatus(appointment, newStatus, false);
+	}
+
+	/** As above; byPatient decides who gets the e-mail (the doctor when a patient cancels). */
+	@Transactional
+	public Appointment changeStatus(Appointment appointment, String newStatus, boolean byPatient) {
 		if (!appointment.isActive()) {
 			throw new ApiException(HttpStatus.BAD_REQUEST,
 					"This appointment is already " + appointment.getStatus().toLowerCase() + ".");
@@ -149,7 +189,13 @@ public class AppointmentServiceImplementation  {
 					+ newStatus + ".");
 		}
 		appointment.setStatus(newStatus);
-		return appointmentRepository.save(appointment);
+		Appointment saved = appointmentRepository.save(appointment);
+		notifications.statusChanged(saved, byPatient);
+		return saved;
+	}
+
+	public Page<Appointment> search(String q, String status, Long doctorId, String from, String to, Pageable pageable) {
+		return appointmentRepository.search(q, status, doctorId, from, to, pageable);
 	}
 
 	public long countByStatus(String status) {

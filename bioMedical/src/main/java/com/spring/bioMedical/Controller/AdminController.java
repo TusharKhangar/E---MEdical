@@ -9,6 +9,8 @@ import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.mail.SimpleMailMessage;
@@ -18,6 +20,7 @@ import org.springframework.web.bind.annotation.*;
 
 import com.spring.bioMedical.dto.AdminDto;
 import com.spring.bioMedical.dto.AppointmentDto;
+import com.spring.bioMedical.dto.PageResponse;
 import com.spring.bioMedical.entity.User;
 import com.spring.bioMedical.entity.Appointment;
 import com.spring.bioMedical.entity.ContactMessage;
@@ -26,6 +29,7 @@ import com.spring.bioMedical.service.DemoMode;
 import com.spring.bioMedical.exception.ApiException;
 import com.spring.bioMedical.service.AdminServiceImplementation;
 import com.spring.bioMedical.service.AppointmentServiceImplementation;
+import com.spring.bioMedical.service.AnalyticsService;
 import com.spring.bioMedical.service.EmailService;
 
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -46,18 +50,20 @@ public class AdminController {
 	private final EmailService emailService;
 	private final ContactMessageRepository contactMessages;
 	private final DemoMode demoMode;
+	private final AnalyticsService analyticsService;
 
 	@Value("${app.frontend-url:http://localhost:5173}")
 	private String frontendUrl;
 
 	@Autowired
 	public AdminController(AdminServiceImplementation obj, AppointmentServiceImplementation app, EmailService emailService,
-			ContactMessageRepository contactMessages, DemoMode demoMode) {
+			ContactMessageRepository contactMessages, DemoMode demoMode, AnalyticsService analyticsService) {
 		this.adminServiceImplementation = obj;
 		this.appointmentServiceImplementation = app;
 		this.emailService = emailService;
 		this.contactMessages = contactMessages;
 		this.demoMode = demoMode;
+		this.analyticsService = analyticsService;
 	}
 
 	/** Messages sent through the public Contact page, newest first. */
@@ -177,6 +183,61 @@ public class AdminController {
 		stats.put("completed", appointmentServiceImplementation.countByStatus(Appointment.COMPLETED));
 		stats.put("cancelled", appointmentServiceImplementation.countByStatus(Appointment.CANCELLED));
 		return ResponseEntity.ok(stats);
+	}
+
+	/**
+	 * Server-side search for the appointments table: free text (patient, e-mail, doctor, department),
+	 * status, doctor and date range, one page at a time. Sorted by visit date (newest first), or by when
+	 * it was booked (sort=booked), or soonest first (sort=soonest).
+	 */
+	@GetMapping("/appointments/search")
+	public ResponseEntity<PageResponse<AppointmentDto>> searchAppointments(@RequestParam(required = false) String q,
+			@RequestParam(required = false) String status, @RequestParam(required = false) Long doctorId,
+			@RequestParam(required = false) String from, @RequestParam(required = false) String to,
+			@RequestParam(defaultValue = "date") String sort, @RequestParam(defaultValue = "0") int page,
+			@RequestParam(defaultValue = "20") int size) {
+		Sort order = switch (sort) {
+			case "booked" -> Sort.by(Sort.Order.desc("regtime"), Sort.Order.desc("id"));
+			case "soonest" -> Sort.by(Sort.Order.asc("date"), Sort.Order.asc("time"));
+			default -> Sort.by(Sort.Order.desc("date"), Sort.Order.desc("time"));
+		};
+		var result = appointmentServiceImplementation.search(like(q), blankToNull(status), doctorId, blankToNull(from),
+				blankToNull(to), pageRequest(page, size, order));
+		return ResponseEntity.ok(PageResponse.of(result, AppointmentDto::new));
+	}
+
+	/** Server-side search for the patients, doctors and admins tables. role is USER, DOCTOR or ADMIN. */
+	@GetMapping("/accounts")
+	public ResponseEntity<PageResponse<AdminDto>> searchAccounts(@RequestParam String role,
+			@RequestParam(required = false) String q, @RequestParam(defaultValue = "0") int page,
+			@RequestParam(defaultValue = "20") int size) {
+		String fullRole = "ROLE_" + role.toUpperCase().replace("ROLE_", "");
+		if (!List.of("ROLE_USER", "ROLE_DOCTOR", "ROLE_ADMIN").contains(fullRole)) {
+			throw new ApiException(HttpStatus.BAD_REQUEST, "role must be USER, DOCTOR or ADMIN");
+		}
+		var result = adminServiceImplementation.search(fullRole, like(q),
+				pageRequest(page, size, Sort.by("firstName", "lastName")));
+		return ResponseEntity.ok(PageResponse.of(result, AdminDto::new));
+	}
+
+	private static PageRequest pageRequest(int page, int size, Sort sort) {
+		return PageRequest.of(Math.max(page, 0), Math.min(Math.max(size, 1), 100), sort);
+	}
+
+	private static String blankToNull(String s) {
+		return s == null || s.isBlank() ? null : s.trim();
+	}
+
+	/** "  Smith " becomes "%smith%" for a case-insensitive contains match; blank means no filter. */
+	private static String like(String q) {
+		String t = blankToNull(q);
+		return t == null ? null : "%" + t.toLowerCase().replace("%", "").replace("_", "") + "%";
+	}
+
+	/** Charts for the analytics page: bookings per day, status, department, hour and busiest doctors. */
+	@GetMapping("/analytics")
+	public ResponseEntity<AnalyticsService.Analytics> getAnalytics(@RequestParam(defaultValue = "30") int days) {
+		return ResponseEntity.ok(analyticsService.forLastDays(days));
 	}
 
 	/**
