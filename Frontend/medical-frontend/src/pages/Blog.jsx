@@ -1,5 +1,5 @@
 import React from 'react';
-import Header from '../components/common/Header';
+import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 
 const Blog = () => {
@@ -152,9 +152,9 @@ const Blog = () => {
                     <span>•</span>
                     <span>{filteredPosts[0].readTime}</span>
                   </div>
-                  <button className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg transition duration-300">
-                    Read Full Article
-                  </button>
+                  <Link to="/doctors" className="inline-block bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg transition duration-300">
+                    Talk to a doctor
+                  </Link>
                 </div>
                 <div className="h-64 md:h-full">
                   <img
@@ -213,9 +213,9 @@ const Blog = () => {
                       <div>{post.author}</div>
                       <div>{post.date}</div>
                     </div>
-                    <button className="text-blue-600 hover:text-blue-700 font-medium text-sm transition duration-300">
-                      Read More →
-                    </button>
+                    <Link to="/doctors" className="text-blue-600 hover:text-blue-700 font-medium text-sm transition duration-300">
+                      Find a doctor →
+                    </Link>
                   </div>
                   <div className="mt-4 flex flex-wrap gap-2">
                     {post.tags.map(tag => (

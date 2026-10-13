@@ -20,8 +20,10 @@ class AuthService {
         gender: userData.gender,
         phoneNumber: userData.phoneNumber
       });
-      toast.success(response.data || 'Registration successful! Please check your email.');
-      return { success: true, message: response.data };
+      // { message, link? }: link is only present on the demo site, where no e-mail is sent
+      const { message, link } = response.data || {};
+      toast.success(message || 'Registration successful! Please check your email.');
+      return { success: true, message, link };
     } catch (error) {
       const message = errorMessage(error, 'Registration failed');
       toast.error(message);

@@ -8,6 +8,7 @@ export const medicalService = {
   // ---- Public (no login needed) ----
   getDoctors: (specialization) =>
     data(api.get('/doctors', { params: specialization ? { specialization } : {} })),
+  getPublicStats: () => data(api.get('/stats')),
   getDoctorSlots: (doctorId, date) =>
     data(api.get(`/doctors/${doctorId}/slots`, { params: { date } })),
 
@@ -39,6 +40,8 @@ export const medicalService = {
   addDoctor: (doctor) => data(api.post('/admin/doctors', doctor)),
   addAdmin: (admin) => data(api.post('/admin/admins', admin)),
   setUserEnabled: (id, enabled) => data(api.patch(`/admin/users/${id}/enabled`, { enabled })),
+  getMessages: () => data(api.get('/admin/messages')),
+  setMessageHandled: (id, handled) => data(api.patch(`/admin/messages/${id}`, { handled })),
 };
 
 /** Appointments for whoever is signed in, picked by role. */

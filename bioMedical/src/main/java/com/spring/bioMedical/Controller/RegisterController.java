@@ -16,9 +16,14 @@ import org.springframework.web.bind.annotation.*;
 
 import com.spring.bioMedical.dto.ConfirmationRequest;
 import com.spring.bioMedical.dto.ConfirmationResponse;
+import com.spring.bioMedical.dto.LinkResponse;
 import com.spring.bioMedical.dto.RegistrationRequest;
 import com.spring.bioMedical.entity.User;
+import com.spring.bioMedical.service.DemoMode;
 import com.spring.bioMedical.service.EmailService;
+
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import com.spring.bioMedical.service.PasswordStrength;
 import com.spring.bioMedical.service.UserService;
 
@@ -28,24 +33,30 @@ import com.spring.bioMedical.service.UserService;
  */
 @RestController
 @RequestMapping("/api")
+@Tag(name = "Authentication")
 public class RegisterController {
 
 	private final UserService userService;
 	private final EmailService emailService;
 	private final PasswordEncoder passwordEncoder;
+	private final DemoMode demoMode;
 
 	@Value("${app.frontend-url:http://localhost:5173}")
 	private String frontendUrl;
 
 	@Autowired
-	public RegisterController(UserService userService, EmailService emailService, PasswordEncoder passwordEncoder) {
+	public RegisterController(UserService userService, EmailService emailService, PasswordEncoder passwordEncoder,
+			DemoMode demoMode) {
 		this.userService = userService;
 		this.emailService = emailService;
         this.passwordEncoder = passwordEncoder;
+        this.demoMode = demoMode;
     }
 
 	@PostMapping("/register")
-	public ResponseEntity<String> registerUser(@Valid @RequestBody RegistrationRequest registrationRequest,
+	@Operation(summary = "Register as a patient",
+			description = "Creates a disabled account and e-mails a confirmation link. In demo mode the link is also returned as `link`.")
+	public ResponseEntity<?> registerUser(@Valid @RequestBody RegistrationRequest registrationRequest,
 											   BindingResult bindingResult) {
 
 		if (bindingResult.hasErrors()) {
@@ -71,17 +82,18 @@ public class RegisterController {
 
 		userService.saveUser(user);
 
-		emailService.sendEmail(getSimpleMailMessage(user));
+		String link = frontendUrl + "/confirm?token=" + user.getConfirmationToken();
+		emailService.sendEmail(getSimpleMailMessage(user, link));
 
-		return ResponseEntity.ok("A confirmation e-mail has been sent to " + user.getEmail());
+		return ResponseEntity.ok(new LinkResponse("A confirmation e-mail has been sent to " + user.getEmail(),
+				demoMode.expose(link)));
 	}
 
-	private SimpleMailMessage getSimpleMailMessage(User user) {
+	private static SimpleMailMessage getSimpleMailMessage(User user, String link) {
 		SimpleMailMessage registrationEmail = new SimpleMailMessage();
 		registrationEmail.setTo(user.getEmail());
 		registrationEmail.setSubject("Registration Confirmation");
-		registrationEmail.setText("To confirm your e-mail address, please click the link below:\n"
-				+ frontendUrl + "/confirm?token=" + user.getConfirmationToken());
+		registrationEmail.setText("To confirm your e-mail address, please click the link below:\n" + link);
 		return registrationEmail;
 	}
 

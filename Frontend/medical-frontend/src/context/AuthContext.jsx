@@ -41,9 +41,12 @@ const AuthProvider = ({ children }) => {
     initializeAuth();
   }, []);
 
+  // `loading` only covers restoring the session on page load. Login, register and logout must not
+  // touch it: AppRouter swaps the whole page for a spinner while it is true, which would unmount the
+  // form mid-request and lose its state (e.g. the demo confirmation link after registering).
+
   // Login function
   const login = async (email, password) => {
-    setLoading(true);
     try {
       const result = await authService.login(email, password);
 
@@ -61,38 +64,29 @@ const AuthProvider = ({ children }) => {
     } catch (error) {
       console.error('Login error:', error);
       return { success: false, message: 'Login failed' };
-    } finally {
-      setLoading(false);
     }
   };
 
   // Register function
   const register = async (userData) => {
-    setLoading(true);
     try {
-      const result = await authService.register(userData);
-      return result;
+      return await authService.register(userData);
     } catch (error) {
       console.error('Register error:', error);
       return { success: false, message: 'Registration failed' };
-    } finally {
-      setLoading(false);
     }
   };
 
   // Logout function
   const logout = async () => {
-    setLoading(true);
     try {
       await authService.logout();
-      setUser(null);
-      setToken(null);
-      setIsAuthenticated(false);
     } catch (error) {
       console.error('Logout error:', error);
-    } finally {
-      setLoading(false);
     }
+    setUser(null);
+    setToken(null);
+    setIsAuthenticated(false);
   };
 
   // Update profile function

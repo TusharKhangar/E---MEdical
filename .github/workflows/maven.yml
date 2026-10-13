@@ -34,6 +34,7 @@ jobs:
           cache-dependency-path: Frontend/medical-frontend/package-lock.json
       - run: npm ci --no-audit --no-fund
       - run: npm run lint
+      - run: npm test
       - run: npm run build
 
   docker:

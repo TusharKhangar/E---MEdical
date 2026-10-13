@@ -2,7 +2,6 @@ package com.spring.bioMedical.Controller;
 
 import java.time.LocalDateTime;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -21,31 +20,51 @@ import com.spring.bioMedical.dto.LoginResponse;
 import com.spring.bioMedical.entity.User;
 import com.spring.bioMedical.security.JwtUtil;
 import com.spring.bioMedical.service.AdminServiceImplementation;
+import com.spring.bioMedical.service.LoginAttemptService;
+
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 
 @RestController
 @RequestMapping("/api")
+@Tag(name = "Authentication")
 public class LoginController {
 
-	@Autowired
-	private AuthenticationManager authenticationManager;
+	private final AuthenticationManager authenticationManager;
+	private final JwtUtil jwtUtil;
+	private final AdminServiceImplementation adminServiceImplementation;
+	private final LoginAttemptService loginAttempts;
 
-	@Autowired
-	private JwtUtil jwtUtil;
-
-	@Autowired
-	private AdminServiceImplementation adminServiceImplementation;
+	public LoginController(AuthenticationManager authenticationManager, JwtUtil jwtUtil,
+			AdminServiceImplementation adminServiceImplementation, LoginAttemptService loginAttempts) {
+		this.authenticationManager = authenticationManager;
+		this.jwtUtil = jwtUtil;
+		this.adminServiceImplementation = adminServiceImplementation;
+		this.loginAttempts = loginAttempts;
+	}
 
 	@PostMapping("/login")
+	@Operation(summary = "Sign in with e-mail and password",
+			description = "Returns a JWT plus the user's id, name and role. Five wrong passwords lock the e-mail for 15 minutes (429).")
 	public ResponseEntity<?> login(@RequestBody LoginRequest loginRequest) {
 		if (loginRequest.getUsername() == null || loginRequest.getPassword() == null) {
 			return ResponseEntity.badRequest().body("Please enter your email and password.");
 		}
 		String email = loginRequest.getUsername().trim().toLowerCase();
+
+		long locked = loginAttempts.minutesLocked(email);
+		if (locked > 0) {
+			return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+					.body("Too many failed sign-in attempts. Please try again in " + locked + " minute"
+							+ (locked == 1 ? "" : "s") + ", or reset your password.");
+		}
+
 		try {
 			Authentication authentication = authenticationManager.authenticate(
 					new UsernamePasswordAuthenticationToken(email, loginRequest.getPassword())
 			);
 			SecurityContextHolder.getContext().setAuthentication(authentication);
+			loginAttempts.recordSuccess(email);
 			String jwt = jwtUtil.generateToken(authentication.getName());
 
 			User user = adminServiceImplementation.findByEmail(authentication.getName());
@@ -56,6 +75,7 @@ public class LoginController {
 			return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
 					.body("Please confirm your e-mail and set a password using the link we sent you.");
 		} catch (AuthenticationException e) {
+			loginAttempts.recordFailure(email);
 			return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid email or password");
 		}
 	}

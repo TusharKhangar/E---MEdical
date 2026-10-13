@@ -18,6 +18,7 @@ import com.spring.bioMedical.service.AppointmentServiceImplementation;
 /** Read-only endpoints anyone can call: the doctor directory and free appointment slots. */
 @RestController
 @RequestMapping("/api/doctors")
+@io.swagger.v3.oas.annotations.tags.Tag(name = "Doctor directory")
 public class PublicController {
 
 	private final AdminServiceImplementation adminServiceImplementation;

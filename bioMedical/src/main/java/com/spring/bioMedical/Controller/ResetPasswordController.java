@@ -3,6 +3,7 @@ package com.spring.bioMedical.Controller;
 import com.spring.bioMedical.dto.ConfirmationRequest;
 import com.spring.bioMedical.entity.User;
 import com.spring.bioMedical.repository.UserRepository;
+import com.spring.bioMedical.service.DemoMode;
 import com.spring.bioMedical.service.EmailService;
 import com.spring.bioMedical.service.PasswordStrength;
 
@@ -15,6 +16,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 
+import io.swagger.v3.oas.annotations.tags.Tag;
+
 import java.util.Optional;
 import java.util.UUID;
 
@@ -23,6 +26,7 @@ import java.util.UUID;
  * sets the new password from that link.
  */
 @RestController
+@Tag(name = "Authentication")
 @RequestMapping("/api")
 public class ResetPasswordController {
 
@@ -32,14 +36,17 @@ public class ResetPasswordController {
     private final UserRepository userRepository;
     private final EmailService emailService;
     private final PasswordEncoder passwordEncoder;
+    private final DemoMode demoMode;
 
     @Value("${app.frontend-url:http://localhost:5173}")
     private String frontendUrl;
 
-    ResetPasswordController(UserRepository userRepository, EmailService emailService, PasswordEncoder passwordEncoder){
+    ResetPasswordController(UserRepository userRepository, EmailService emailService, PasswordEncoder passwordEncoder,
+            DemoMode demoMode){
         this.userRepository = userRepository;
         this.emailService = emailService;
         this.passwordEncoder = passwordEncoder;
+        this.demoMode = demoMode;
     }
 
     /** Body is the e-mail address as plain text (the frontend sends {@code text/plain}). */
@@ -47,7 +54,7 @@ public class ResetPasswordController {
     public ResponseEntity<String> forgotPassword(@RequestBody String email){
         String address = email.trim().replace("\"", "").toLowerCase();
         Optional<User> user = userRepository.findByEmail(address);
-        if (user.isPresent()) {
+        if (user.isPresent() && !demoMode.isProtectedAccount(address)) {
             String token = UUID.randomUUID().toString();
             user.get().setConfirmationToken(token);
             userRepository.save(user.get());

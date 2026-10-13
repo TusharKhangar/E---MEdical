@@ -12,6 +12,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -27,6 +28,14 @@ import org.springframework.http.HttpMethod;
 @Configuration
 @EnableWebSecurity
 public class SecurityConfiguration {
+
+	/**
+	 * Scripts only from this origin. Inline styles are allowed because the UI animation library sets them,
+	 * and images may come from https (the hero photo) or data: URLs (Swagger UI).
+	 */
+	static final String CONTENT_SECURITY_POLICY = "default-src 'self'; script-src 'self'; "
+			+ "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; "
+			+ "img-src 'self' data: https:; connect-src 'self'; frame-ancestors 'self'; base-uri 'self'; form-action 'self'";
 
 	private final JwtFilter jwtFilter;
 	private final AuthEntryPointJwt authEntryPoint;
@@ -92,11 +101,15 @@ public class SecurityConfiguration {
 								"/api/confirm",
 								"/api/confirmPassword",
                                 "/api/forgotPassword",
-                                "/api/resetPassword"
+                                "/api/resetPassword",
+								"/api/contact"
 						).permitAll()
 
-						// Public doctor directory and free slots
-						.requestMatchers(HttpMethod.GET, "/api/doctors", "/api/doctors/**").permitAll()
+						// Public doctor directory, free slots and home-page numbers
+						.requestMatchers(HttpMethod.GET, "/api/doctors", "/api/doctors/**", "/api/stats").permitAll()
+
+						// API documentation
+						.requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs", "/v3/api-docs/**").permitAll()
 
 						// Health check for Docker and the hosting platform
 						.requestMatchers("/actuator/health", "/actuator/info").permitAll()
@@ -116,8 +129,15 @@ public class SecurityConfiguration {
 						.anyRequest().permitAll()
 				)
 
-				// Missing or expired token: answer 401 (not 403) so the frontend sends the user to login
-				.exceptionHandling(e -> e.authenticationEntryPoint(authEntryPoint))
+				// Missing or expired token: 401 (so the frontend sends the user to login); wrong role: 403.
+				// Both in the same plain-text format as other errors.
+				.exceptionHandling(e -> e.authenticationEntryPoint(authEntryPoint).accessDeniedHandler(authEntryPoint))
+
+				// Browser hardening for the React app served from this jar
+				.headers(headers -> headers
+						.contentSecurityPolicy(csp -> csp.policyDirectives(CONTENT_SECURITY_POLICY))
+						.referrerPolicy(r -> r.policy(ReferrerPolicyHeaderWriter.ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN))
+						.permissionsPolicy(p -> p.policy("camera=(), microphone=(), geolocation=()")))
 
 				// Add JWT filter before username/password authentication
 				.addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);

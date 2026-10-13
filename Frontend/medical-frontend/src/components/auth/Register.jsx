@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '../../context/AuthContext';
+import DemoLinkNotice from '../common/DemoLinkNotice';
 import { 
   EyeIcon, 
   EyeSlashIcon, 
@@ -23,6 +24,7 @@ const Register = () => {
   // const [showPassword, setShowPassword] = useState(false);
   // const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [demoLink, setDemoLink] = useState(null);
   // const [passwordStrength, setPasswordStrength] = useState(0);
   
   const { register } = useAuth();
@@ -79,9 +81,14 @@ const Register = () => {
       });
 
       if (result.success) {
-        navigate('/login', {
-          state: { message: 'Registration successful! Please check your email to verify your account.' }
-        });
+        if (result.link) {
+          // Demo site: show the link instead of waiting for an e-mail that will never arrive
+          setDemoLink(result.link);
+        } else {
+          navigate('/login', {
+            state: { message: 'Registration successful! Please check your email to verify your account.' }
+          });
+        }
       }
     } catch (error) {
       console.error('Registration error:', error);
@@ -289,6 +296,12 @@ const Register = () => {
             )}
           </motion.button>
         </form>
+
+        {demoLink && (
+          <div className="mt-6">
+            <DemoLinkNotice link={demoLink} title="Account created: confirm your e-mail" />
+          </div>
+        )}
 
         {/* Footer */}
         <motion.div 

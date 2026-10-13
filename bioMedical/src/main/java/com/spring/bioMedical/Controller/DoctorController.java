@@ -30,6 +30,8 @@ import com.spring.bioMedical.service.AppointmentServiceImplementation;
  */
 @RestController
 @RequestMapping("/api/doctor")
+@io.swagger.v3.oas.annotations.tags.Tag(name = "Doctors (ROLE_DOCTOR)")
+@io.swagger.v3.oas.annotations.security.SecurityRequirement(name = "bearer")
 public class DoctorController {
 
 	private final AdminServiceImplementation adminServiceImplementation;

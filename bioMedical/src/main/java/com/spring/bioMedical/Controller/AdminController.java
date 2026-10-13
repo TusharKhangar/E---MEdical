@@ -20,11 +20,16 @@ import com.spring.bioMedical.dto.AdminDto;
 import com.spring.bioMedical.dto.AppointmentDto;
 import com.spring.bioMedical.entity.User;
 import com.spring.bioMedical.entity.Appointment;
+import com.spring.bioMedical.entity.ContactMessage;
+import com.spring.bioMedical.repository.ContactMessageRepository;
+import com.spring.bioMedical.service.DemoMode;
 import com.spring.bioMedical.exception.ApiException;
 import com.spring.bioMedical.service.AdminServiceImplementation;
 import com.spring.bioMedical.service.AppointmentServiceImplementation;
 import com.spring.bioMedical.service.EmailService;
 
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 
 /**
@@ -32,20 +37,42 @@ import jakarta.validation.Valid;
  */
 @RestController
 @RequestMapping("/api/admin")
+@Tag(name = "Administration (ROLE_ADMIN)")
+@SecurityRequirement(name = "bearer")
 public class AdminController {
 
 	private final AdminServiceImplementation adminServiceImplementation;
 	private final AppointmentServiceImplementation appointmentServiceImplementation;
 	private final EmailService emailService;
+	private final ContactMessageRepository contactMessages;
+	private final DemoMode demoMode;
 
 	@Value("${app.frontend-url:http://localhost:5173}")
 	private String frontendUrl;
 
 	@Autowired
-	public AdminController(AdminServiceImplementation obj, AppointmentServiceImplementation app, EmailService emailService) {
+	public AdminController(AdminServiceImplementation obj, AppointmentServiceImplementation app, EmailService emailService,
+			ContactMessageRepository contactMessages, DemoMode demoMode) {
 		this.adminServiceImplementation = obj;
 		this.appointmentServiceImplementation = app;
 		this.emailService = emailService;
+		this.contactMessages = contactMessages;
+		this.demoMode = demoMode;
+	}
+
+	/** Messages sent through the public Contact page, newest first. */
+	@GetMapping("/messages")
+	public ResponseEntity<List<ContactMessage>> getMessages() {
+		return ResponseEntity.ok(contactMessages.findAllByOrderByCreatedAtDesc());
+	}
+
+	/** Mark a contact message as handled. Body: {"handled": true}. */
+	@PatchMapping("/messages/{id}")
+	public ResponseEntity<ContactMessage> setMessageHandled(@PathVariable Long id, @RequestBody Map<String, Boolean> body) {
+		ContactMessage message = contactMessages.findById(id)
+				.orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Message not found"));
+		message.setHandled(Boolean.TRUE.equals(body.get("handled")));
+		return ResponseEntity.ok(contactMessages.save(message));
 	}
 
 	@GetMapping("/users")
@@ -85,6 +112,9 @@ public class AdminController {
 		}
 		User user = adminServiceImplementation.findById(id)
 				.orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Account not found"));
+		if (demoMode.isProtectedAccount(user.getEmail())) {
+			throw new ApiException(HttpStatus.BAD_REQUEST, "The shared demo accounts can't be disabled.");
+		}
 		boolean enabled = Boolean.TRUE.equals(body.get("enabled"));
 		if (enabled && user.getPassword() == null) {
 			throw new ApiException(HttpStatus.BAD_REQUEST, "This person has not set a password yet.");
@@ -166,13 +196,16 @@ public class AdminController {
 		}
 		adminServiceImplementation.save(admin);
 
+		String link = frontendUrl + "/set-password?token=" + admin.getConfirmationToken();
 		SimpleMailMessage invite = new SimpleMailMessage();
 		invite.setTo(admin.getEmail());
 		invite.setSubject("Your E-Medical staff account");
 		invite.setText("An administrator created an E-Medical account for you.\n"
-				+ "Choose your password here:\n" + frontendUrl + "/set-password?token=" + admin.getConfirmationToken());
+				+ "Choose your password here:\n" + link);
 		emailService.sendEmail(invite);
-		return new AdminDto(admin);
+		AdminDto created = new AdminDto(admin);
+		created.setInviteLink(demoMode.expose(link));
+		return created;
 	}
 
 	private List<AdminDto> accountsWithRole(String role) {

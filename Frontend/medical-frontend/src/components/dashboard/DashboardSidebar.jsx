@@ -21,7 +21,8 @@ const MENU_BY_ROLE = {
     { path: '/dashboard/doctor-details', icon: '👨‍⚕️', label: 'Doctors' },
     { path: '/dashboard/admin-details', icon: '🛡️', label: 'Administrators' },
     { path: '/dashboard/add-doctor', icon: '➕', label: 'Add Doctor' },
-    { path: '/dashboard/add-admin', icon: '➕', label: 'Add Admin' }
+    { path: '/dashboard/add-admin', icon: '➕', label: 'Add Admin' },
+    { path: '/dashboard/messages', icon: '✉️', label: 'Messages' }
   ]
 };
 
@@ -36,7 +37,11 @@ const ROLE_TITLES = {
   ROLE_PATIENT: 'Patient Portal'
 };
 
-const DashboardSidebar = () => {
+/**
+ * Always visible from the md breakpoint up. On phones it is an off-canvas drawer: `open` slides it in
+ * over a dimmed backdrop and `onClose` is called when the backdrop or close button is tapped.
+ */
+const DashboardSidebar = ({ open = false, onClose = () => {} }) => {
   const { user, logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
@@ -51,9 +56,27 @@ const DashboardSidebar = () => {
   };
 
   return (
-    <div className="bg-slate-900 h-full min-h-screen w-64 flex flex-col text-white fixed left-0 top-0 z-40">
+    <>
+    {/* Backdrop behind the drawer on phones */}
+    {open && (
+      <div className="fixed inset-0 z-30 bg-black/50 md:hidden" onClick={onClose} aria-hidden="true" />
+    )}
+    <aside
+      className={`bg-slate-900 h-screen w-64 flex flex-col text-white fixed left-0 top-0 z-40 transform transition-transform duration-200 md:translate-x-0 ${
+        open ? 'translate-x-0' : '-translate-x-full'
+      }`}
+      aria-label="Dashboard navigation"
+    >
       {/* Header */}
-      <div className="p-6 border-b border-slate-700 flex-shrink-0">
+      <div className="p-6 border-b border-slate-700 flex-shrink-0 relative">
+        <button
+          type="button"
+          onClick={onClose}
+          className="md:hidden absolute right-4 top-4 rounded-lg px-2 py-1 text-slate-300 hover:bg-slate-800"
+          aria-label="Close menu"
+        >
+          ✕
+        </button>
         <Link to="/" className="text-lg font-bold">Remedic</Link>
         <h2 className="text-lg font-semibold">{ROLE_TITLES[user?.role] || 'Medical Dashboard'}</h2>
         <p className="text-sm text-slate-400"><span>👤</span> {user?.role?.replace('ROLE_', '') || 'User'}</p>
@@ -102,7 +125,8 @@ const DashboardSidebar = () => {
           Sign Out
         </button>
       </div>
-    </div>
+    </aside>
+    </>
   );
 };
 
