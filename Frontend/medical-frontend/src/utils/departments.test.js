@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { HeartPulse, Hospital } from 'lucide-react';
 import { departmentInfo, departmentsFromDoctors } from './departments';
 
 describe('departmentsFromDoctors', () => {
@@ -13,10 +14,10 @@ describe('departmentsFromDoctors', () => {
       ['Cardiology', 2],
       ['Pediatrics', 1]
     ]);
-    expect(departments[0].icon).toBe('💓');
+    expect(departments[0].Icon).toBe(HeartPulse);
   });
 
   it('falls back to a generic look for unknown specializations', () => {
-    expect(departmentInfo('Radiology')).toMatchObject({ name: 'Radiology', icon: '🏥' });
+    expect(departmentInfo('Radiology')).toMatchObject({ name: 'Radiology', Icon: Hospital });
   });
 });

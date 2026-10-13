@@ -1,8 +1,96 @@
+/* Fonts are bundled with the app (no third-party font requests, so the CSP stays strict). */
+@import '@fontsource-variable/inter';
+@import '@fontsource-variable/source-serif-4';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Darkens the home page photo so the headline stays readable */
-.hero-overlay {
-  background: linear-gradient(135deg, rgba(15, 23, 42, 0.75) 0%, rgba(15, 23, 42, 0.55) 100%);
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    @apply bg-canvas text-slate-800 font-sans;
+    font-feature-settings: 'cv11', 'ss01';
+  }
+
+  h1, h2, h3, h4 {
+    @apply tracking-tight;
+  }
+
+  :focus-visible {
+    @apply outline-none ring-2 ring-brand-500 ring-offset-2;
+  }
+
+  ::selection {
+    @apply bg-brand-100 text-brand-900;
+  }
+}
+
+@layer components {
+  /* Buttons */
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors
+      disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .btn-primary {
+    @apply btn bg-brand-700 text-white hover:bg-brand-800;
+  }
+  .btn-secondary {
+    @apply btn border border-slate-300 bg-white text-slate-700 hover:bg-slate-50;
+  }
+  .btn-ghost {
+    @apply btn text-slate-600 hover:bg-slate-100 hover:text-slate-900;
+  }
+  .btn-danger {
+    @apply btn border border-red-200 bg-white text-red-700 hover:bg-red-50;
+  }
+  .btn-sm {
+    @apply px-3 py-1.5 text-xs;
+  }
+  .btn-lg {
+    @apply px-5 py-3 text-base;
+  }
+
+  /* Surfaces */
+  .card {
+    @apply rounded-xl border border-slate-200 bg-white shadow-card;
+  }
+  .card-header {
+    @apply flex items-center justify-between gap-4 border-b border-slate-100 px-5 py-4;
+  }
+  .card-title {
+    @apply text-sm font-semibold text-slate-900;
+  }
+
+  /* Forms */
+  .label {
+    @apply mb-1.5 block text-sm font-medium text-slate-700;
+  }
+  .input {
+    @apply block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder-slate-400
+      transition-colors focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20
+      disabled:bg-slate-50 disabled:text-slate-600;
+  }
+  .field-error {
+    @apply mt-1.5 text-xs text-red-600;
+  }
+
+  /* Text */
+  .eyebrow {
+    @apply text-xs font-semibold uppercase tracking-[0.12em] text-brand-700;
+  }
+  .page-title {
+    @apply text-2xl font-semibold text-slate-900;
+  }
+  .page-subtitle {
+    @apply mt-1 text-sm text-slate-600;
+  }
+  .link {
+    @apply font-medium text-brand-700 underline-offset-4 hover:underline;
+  }
 }

@@ -1,8 +1,9 @@
 // src/pages/Dashboard.jsx
 import React, { useEffect, useState } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
-import { Bars3Icon } from '@heroicons/react/24/outline';
+import { Menu } from 'lucide-react';
 import DashboardSidebar from '../components/dashboard/DashboardSidebar';
+import Logo from '../components/common/Logo';
 
 /**
  * Shell for every signed-in screen: a role-aware sidebar and the current page. On wide screens the
@@ -19,24 +20,21 @@ const Dashboard = () => {
   }, [location.pathname]);
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-canvas">
       {/* Phone top bar */}
-      <header className="md:hidden sticky top-0 z-30 flex items-center justify-between bg-slate-900 px-4 py-3 text-white">
-        <span className="font-bold">Remedic</span>
-        <button
-          type="button"
-          onClick={() => setMenuOpen(true)}
-          className="rounded-lg p-2 hover:bg-slate-800"
-          aria-label="Open menu"
-        >
-          <Bars3Icon className="h-6 w-6" />
+      <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-slate-200 bg-white px-4 md:hidden">
+        <Logo to="/dashboard" />
+        <button type="button" onClick={() => setMenuOpen(true)} className="btn-ghost px-2" aria-label="Open menu">
+          <Menu className="h-5 w-5" />
         </button>
       </header>
 
       <DashboardSidebar open={menuOpen} onClose={() => setMenuOpen(false)} />
 
-      <main className="md:ml-64 p-4 md:p-6 overflow-x-hidden">
-        <Outlet />
+      <main className="overflow-x-hidden px-4 py-6 md:ml-64 md:px-8 md:py-8">
+        <div className="mx-auto max-w-6xl">
+          <Outlet />
+        </div>
       </main>
     </div>
   );

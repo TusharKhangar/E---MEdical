@@ -1,20 +1,15 @@
 // src/components/dashboard/AdminDetails.jsx
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { ShieldCheckIcon, PlusIcon } from '@heroicons/react/24/outline';
+import { UserPlus } from 'lucide-react';
 import AccountTable from './AccountTable';
 
 const AdminDetails = () => (
   <AccountTable
     title="Administrators"
     subtitle="Administrators manage staff, patients and every appointment"
-    Icon={ShieldCheckIcon}
     role="ADMIN"
-    action={
-      <Link to="/dashboard/add-admin" className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-        <PlusIcon className="h-4 w-4 mr-2" /> Add Admin
-      </Link>
-    }
+    action={<Link to="/dashboard/add-admin" className="btn-primary"><UserPlus className="h-4 w-4" aria-hidden="true" /> Add administrator</Link>}
   />
 );
 

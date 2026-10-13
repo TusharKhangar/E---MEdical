@@ -20,14 +20,11 @@ class AuthService {
         gender: userData.gender,
         phoneNumber: userData.phoneNumber
       });
-      // { message, link? }: link is only present on the demo site, where no e-mail is sent
-      const { message, link } = response.data || {};
-      toast.success(message || 'Registration successful! Please check your email.');
-      return { success: true, message, link };
+      const { message } = response.data || {};
+      return { success: true, message };
     } catch (error) {
-      const message = errorMessage(error, 'Registration failed');
-      toast.error(message);
-      return { success: false, message };
+      // The form shows the error next to the fields
+      return { success: false, message: errorMessage(error, 'Registration failed') };
     }
   }
 
@@ -47,12 +44,10 @@ class AuthService {
       localStorage.setItem(STORAGE_KEYS.TOKEN, jwt);
       localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(userData));
 
-      toast.success('Login successful!');
       return { success: true, user: userData, token: jwt };
     } catch (error) {
-      const message = errorMessage(error, 'Login failed');
-      toast.error(message);
-      return { success: false, message };
+      // The form shows the error next to the fields
+      return { success: false, message: errorMessage(error, 'Login failed') };
     }
   }
 

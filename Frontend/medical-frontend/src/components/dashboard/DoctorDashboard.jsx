@@ -1,13 +1,16 @@
-// Doctor Dashboard Component
-import React, { useState, useEffect } from 'react';
+// Doctor home: today's list in time order, requests to answer, and what's coming up.
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
+import { CalendarClock, CalendarDays, Inbox, Users } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { medicalService, errorMessage } from '../../services/medicalService';
 import PrescriptionDialog from '../appointments/PrescriptionDialog';
+import StatusBadge from '../common/StatusBadge';
+import { Empty, PageTitle, Panel, Stat } from './ui';
+import { greeting, longDate, todayIso } from '../../utils/format';
 
-const todayIso = () => new Date().toISOString().split('T')[0];
+const isActive = (a) => a.status === 'PENDING' || a.status === 'CONFIRMED';
 
 const DoctorDashboard = () => {
   const { user } = useAuth();
@@ -22,44 +25,18 @@ const DoctorDashboard = () => {
   useEffect(() => { load(); }, []);
 
   const today = todayIso();
-  const active = (a) => a.status === 'PENDING' || a.status === 'CONFIRMED';
-  const todays = appointments.filter(a => a.date === today && a.status !== 'CANCELLED')
-    .sort((a, b) => a.time.localeCompare(b.time));
-  const upcoming = appointments.filter(a => a.date > today && active(a))
+  const todays = appointments.filter((a) => a.date === today && a.status !== 'CANCELLED').sort((a, b) => a.time.localeCompare(b.time));
+  const requests = appointments.filter((a) => a.status === 'PENDING' && a.date >= today)
     .sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
-  const pending = appointments.filter(a => a.status === 'PENDING');
-  const patients = new Set(appointments.map(a => a.email)).size;
-  const nextToday = todays.find(a => active(a));
-
-  const getGreeting = () => {
-    const hour = new Date().getHours();
-    let greeting = 'Good morning';
-    if (hour >= 12 && hour < 17) {
-      greeting = 'Good afternoon';
-    } else if (hour >= 17) {
-      greeting = 'Good evening';
-    }
-    return `${greeting}, Dr. ${user?.lastName || user?.firstName || 'Doctor'}!`;
-  };
-
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'COMPLETED':
-        return 'text-green-700 bg-green-100 border-green-300';
-      case 'CONFIRMED':
-        return 'text-blue-700 bg-blue-100 border-blue-300';
-      case 'PENDING':
-        return 'text-yellow-700 bg-yellow-100 border-yellow-300';
-      default:
-        return 'text-gray-700 bg-gray-100 border-gray-300';
-    }
-  };
+  const upcoming = appointments.filter((a) => a.date > today && a.status === 'CONFIRMED')
+    .sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
+  const patients = new Set(appointments.map((a) => a.email)).size;
 
   const setStatus = async (id, status) => {
     setBusyId(id);
     try {
       await medicalService.setDoctorAppointmentStatus(id, status);
-      toast.success(`Appointment ${status.toLowerCase()}`);
+      toast.success(status === 'CONFIRMED' ? 'Appointment confirmed' : 'Appointment cancelled');
       await load();
     } catch (error) {
       toast.error(errorMessage(error, 'Could not update the appointment'));
@@ -69,141 +46,95 @@ const DoctorDashboard = () => {
   };
 
   const Actions = ({ a }) => (
-    <div className="flex space-x-2">
+    <div className="flex shrink-0 gap-2">
       {a.status === 'PENDING' && (
-        <button onClick={() => setStatus(a.id, 'CONFIRMED')} disabled={busyId === a.id}
-          className="text-green-600 hover:text-green-800 text-xs bg-green-50 px-2 py-1 rounded disabled:opacity-50">
-          Confirm
-        </button>
+        <button onClick={() => setStatus(a.id, 'CONFIRMED')} disabled={busyId === a.id} className="btn-primary btn-sm">Confirm</button>
       )}
       {a.status === 'CONFIRMED' && (
-        <button onClick={() => setPrescribing(a)} disabled={busyId === a.id}
-          className="text-blue-600 hover:text-blue-800 text-xs bg-blue-50 px-2 py-1 rounded disabled:opacity-50">
-          Complete visit
-        </button>
+        <button onClick={() => setPrescribing(a)} disabled={busyId === a.id} className="btn-primary btn-sm">Complete visit</button>
       )}
-      {active(a) && (
-        <button onClick={() => setStatus(a.id, 'CANCELLED')} disabled={busyId === a.id}
-          className="text-red-600 hover:text-red-800 text-xs bg-red-50 px-2 py-1 rounded disabled:opacity-50">
-          Cancel
+      {isActive(a) && (
+        <button onClick={() => setStatus(a.id, 'CANCELLED')} disabled={busyId === a.id} className="btn-secondary btn-sm">
+          {a.status === 'PENDING' ? 'Decline' : 'Cancel'}
         </button>
       )}
     </div>
   );
-
-  const Row = ({ a, showDate }) => (
-    <div className="p-6">
-      <div className="flex items-start justify-between">
-        <div className="flex-1">
-          <div className="flex items-center space-x-2 mb-2">
-            <h4 className="font-medium text-gray-900">{a.name}</h4>
-            <span className={`px-2 py-1 rounded-full text-xs border ${getStatusColor(a.status)}`}>
-              {a.status.toLowerCase()}
-            </span>
-          </div>
-          <p className="text-sm text-gray-600 mb-1">{a.description || 'No reason given'}</p>
-          <p className="text-sm text-gray-700">{showDate ? `${a.date} · ` : ''}{a.time} · {a.email}</p>
-        </div>
-        <Actions a={a} />
-      </div>
-    </div>
-  );
-
-  const stats = [
-    { label: 'My Patients', value: patients, note: 'People who booked you', icon: '🏥', colour: 'text-blue-600' },
-    { label: "Today's Schedule", value: todays.length, note: 'Appointments today', icon: '📅', colour: 'text-green-600' },
-    { label: 'To Confirm', value: pending.length, note: 'Awaiting your reply', icon: '📋', colour: 'text-orange-600' },
-    { label: 'Upcoming', value: upcoming.length, note: 'After today', icon: '🗓️', colour: 'text-purple-600' }
-  ];
 
   return (
     <div className="space-y-6">
       {prescribing && (
-        <PrescriptionDialog
-          appointment={prescribing}
-          onClose={() => setPrescribing(null)}
-          onSaved={() => { setPrescribing(null); load(); }}
-        />
+        <PrescriptionDialog appointment={prescribing} onClose={() => setPrescribing(null)}
+          onSaved={() => { setPrescribing(null); load(); }} />
       )}
-      {/* Doctor Header */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="bg-gradient-to-r from-green-600 to-teal-700 rounded-xl p-6 text-white"
-      >
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold">{getGreeting()}</h1>
-            <p className="text-green-100 mt-1">{user?.specialization || 'Your Medical Practice Dashboard'}</p>
-          </div>
-          <div className="text-right">
-            <div className="text-4xl mb-2">👨‍⚕️</div>
-            <div className="text-green-100 text-sm">
-              Next: {nextToday ? `${nextToday.time} · ${nextToday.name}` : 'nothing more today'}
-            </div>
-          </div>
-        </div>
-      </motion.div>
 
-      {/* Doctor Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {stats.map((s, index) => (
-          <motion.div
-            key={s.label}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 * (index + 1) }}
-            className="bg-white p-6 rounded-lg shadow-sm border border-gray-200"
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">{s.label}</p>
-                <p className={`text-2xl font-bold ${s.colour}`}>{s.value}</p>
-                <p className="text-xs text-gray-500">{s.note}</p>
-              </div>
-              <div className="text-3xl">{s.icon}</div>
-            </div>
-          </motion.div>
-        ))}
+      <PageTitle title={`${greeting()}, Dr. ${user?.lastName || user?.firstName || ''}`.trim()} subtitle={user?.specialization || 'Your schedule'}>
+        <Link to="/dashboard/availability" className="btn-secondary"><CalendarClock className="h-4 w-4" aria-hidden="true" /> Working hours</Link>
+      </PageTitle>
+
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <Stat label="Today" value={todays.length} note={todays.length === 1 ? 'appointment' : 'appointments'} Icon={CalendarDays} />
+        <Stat label="To answer" value={requests.length} note="New requests" Icon={Inbox} />
+        <Stat label="Coming up" value={upcoming.length} note="Confirmed, after today" Icon={CalendarClock} />
+        <Stat label="Patients" value={patients} note="Have booked you" Icon={Users} />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Today's Schedule */}
-        <motion.div
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.5 }}
-          className="bg-white rounded-xl shadow-sm border border-gray-200"
-        >
-          <div className="p-6 border-b border-gray-200">
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-gray-900">Today&apos;s Schedule</h3>
-              <Link to="/dashboard/appointments" className="text-blue-600 hover:text-blue-800 text-sm font-medium">
-                View Full Schedule
-              </Link>
-            </div>
-          </div>
-          <div className="divide-y divide-gray-100">
-            {todays.length === 0 && <div className="p-6 text-sm text-gray-500">No appointments today.</div>}
-            {todays.map((a) => <Row key={a.id} a={a} />)}
-          </div>
-        </motion.div>
+      <Panel title={`Today · ${longDate(today)}`} action={<Link to="/dashboard/appointments" className="link text-sm">Full schedule</Link>}>
+        {todays.length === 0 ? (
+          <Empty>No appointments today.</Empty>
+        ) : (
+          <ol className="divide-y divide-slate-100">
+            {todays.map((a) => (
+              <li key={a.id} className="flex flex-wrap items-center gap-4 px-5 py-4">
+                <span className="w-14 text-sm font-semibold tabular-nums text-slate-900">{a.time}</span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium text-slate-900">{a.name}</p>
+                  <p className="truncate text-xs text-slate-600">{a.description || 'No reason given'}</p>
+                </div>
+                <StatusBadge status={a.status} />
+                <Actions a={a} />
+              </li>
+            ))}
+          </ol>
+        )}
+      </Panel>
 
-        {/* Upcoming */}
-        <motion.div
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.6 }}
-          className="bg-white rounded-xl shadow-sm border border-gray-200"
-        >
-          <div className="p-6 border-b border-gray-200">
-            <h3 className="text-lg font-semibold text-gray-900">Upcoming Appointments</h3>
-          </div>
-          <div className="divide-y divide-gray-100">
-            {upcoming.length === 0 && <div className="p-6 text-sm text-gray-500">Nothing booked after today.</div>}
-            {upcoming.slice(0, 6).map((a) => <Row key={a.id} a={a} showDate />)}
-          </div>
-        </motion.div>
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Panel title="Requests to answer">
+          {requests.length === 0 ? (
+            <Empty>You’re all caught up.</Empty>
+          ) : (
+            <ul className="divide-y divide-slate-100">
+              {requests.slice(0, 6).map((a) => (
+                <li key={a.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-3.5">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium text-slate-900">{a.name}</p>
+                    <p className="text-xs text-slate-600">{longDate(a.date)}, {a.time}</p>
+                  </div>
+                  <Actions a={a} />
+                </li>
+              ))}
+            </ul>
+          )}
+        </Panel>
+
+        <Panel title="Confirmed, after today">
+          {upcoming.length === 0 ? (
+            <Empty>Nothing confirmed after today yet.</Empty>
+          ) : (
+            <ul className="divide-y divide-slate-100">
+              {upcoming.slice(0, 6).map((a) => (
+                <li key={a.id} className="flex items-center justify-between gap-3 px-5 py-3.5">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium text-slate-900">{a.name}</p>
+                    <p className="truncate text-xs text-slate-600">{a.description || 'No reason given'}</p>
+                  </div>
+                  <span className="shrink-0 text-xs text-slate-600">{longDate(a.date)}, {a.time}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Panel>
       </div>
     </div>
   );

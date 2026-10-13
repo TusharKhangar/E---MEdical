@@ -1,19 +1,21 @@
+// Public doctor directory. The department filter lives in the URL (?department=...), so other pages
+// can link straight to one department.
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { Search } from 'lucide-react';
 import { medicalService } from '../services/medicalService';
 import { useAuth } from '../context/AuthContext';
-
-const ICONS = { MALE: '👨‍⚕️', FEMALE: '👩‍⚕️' };
+import DoctorAvatar from '../components/common/DoctorAvatar';
+import PageHeader from '../components/common/PageHeader';
 
 const Doctors = () => {
   const { isAuthenticated, isPatient } = useAuth();
   const [doctors, setDoctors] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [query, setQuery] = useState('');
   const [searchParams, setSearchParams] = useSearchParams();
-  // The selected department lives in the URL (?department=...), so links from other pages can preselect it
   const department = searchParams.get('department') || '';
   const setDepartment = (value) => setSearchParams(value ? { department: value } : {});
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     medicalService.getDoctors()
@@ -23,59 +25,69 @@ const Doctors = () => {
   }, []);
 
   const departments = useMemo(
-    () => [...new Set(doctors.map(d => d.specialization).filter(Boolean))].sort(),
+    () => [...new Set(doctors.map((d) => d.specialization).filter(Boolean))].sort(),
     [doctors]
   );
-  const visible = department ? doctors.filter(d => d.specialization === department) : doctors;
-  const bookLink = isAuthenticated && isPatient() ? '/dashboard/make-appointment' : '/login';
+  const q = query.trim().toLowerCase();
+  const visible = doctors
+    .filter((d) => !department || d.specialization === department)
+    .filter((d) => !q || `${d.firstName} ${d.lastName} ${d.specialization || ''}`.toLowerCase().includes(q));
+
+  // Staff can't book; everyone else goes to booking (sign-in first if needed)
+  const canBook = !isAuthenticated || isPatient();
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="container mx-auto px-4 py-16">
-        <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
-          <motion.h1
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="text-3xl font-bold text-gray-800"
-          >
-            Our Doctors
-          </motion.h1>
-          <select
-            aria-label="Filter by department"
-            value={department}
-            onChange={(e) => setDepartment(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-700"
-          >
-            <option value="">All departments</option>
-            {departments.map(d => <option key={d} value={d}>{d}</option>)}
-          </select>
-        </div>
+    <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6">
+      <PageHeader eyebrow="Doctors" title="Find a doctor" subtitle="Every doctor here is taking appointments. Pick one to see their free times." />
 
-        {loading ? (
-          <div className="text-center text-gray-500 py-12">Loading doctors...</div>
-        ) : visible.length === 0 ? (
-          <div className="text-center text-gray-500 py-12">No doctors listed yet.</div>
-        ) : (
-          <div className="grid md:grid-cols-3 gap-8">
-            {visible.map((doc, idx) => (
-              <motion.div
-                key={doc.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: idx * 0.05 }}
-                className="bg-white shadow rounded-xl p-8 text-center"
-              >
-                <div className="text-5xl mb-3">{ICONS[doc.gender] || '🩺'}</div>
-                <h2 className="text-xl font-semibold text-gray-800 mb-1">Dr. {doc.firstName} {doc.lastName}</h2>
-                <div className="text-blue-600 mb-4">{doc.specialization || 'General practice'}</div>
-                <Link to={bookLink} className="inline-block px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm">
-                  Book Appointment
-                </Link>
-              </motion.div>
-            ))}
-          </div>
-        )}
+      <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+        <label className="relative flex-1">
+          <span className="sr-only">Search by name</span>
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" aria-hidden="true" />
+          <input
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search by name or speciality"
+            className="input pl-9"
+          />
+        </label>
+        <label className="sm:w-64">
+          <span className="sr-only">Filter by department</span>
+          <select aria-label="Filter by department" value={department} onChange={(e) => setDepartment(e.target.value)} className="input">
+            <option value="">All departments</option>
+            {departments.map((d) => <option key={d} value={d}>{d}</option>)}
+          </select>
+        </label>
       </div>
+
+      {loading ? (
+        <p className="py-16 text-center text-slate-600">Loading doctors…</p>
+      ) : visible.length === 0 ? (
+        <p className="py-16 text-center text-slate-600">
+          {doctors.length === 0 ? 'No doctors are listed yet.' : 'No doctor matches that search.'}
+        </p>
+      ) : (
+        <>
+          <p className="mt-6 text-sm text-slate-600">{visible.length} {visible.length === 1 ? 'doctor' : 'doctors'}</p>
+          <ul className="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {visible.map((doc) => (
+              <li key={doc.id} className="card flex items-center gap-4 p-5">
+                <DoctorAvatar doctor={doc} size="h-12 w-12 text-base" />
+                <div className="min-w-0 flex-1">
+                  <h2 className="truncate font-semibold text-slate-900">Dr. {doc.firstName} {doc.lastName}</h2>
+                  <p className="truncate text-sm text-slate-600">{doc.specialization || 'General practice'}</p>
+                </div>
+                {canBook && (
+                  <Link to={`/dashboard/make-appointment?doctorId=${doc.id}`} className="btn-secondary btn-sm">
+                    Book
+                  </Link>
+                )}
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
     </div>
   );
 };

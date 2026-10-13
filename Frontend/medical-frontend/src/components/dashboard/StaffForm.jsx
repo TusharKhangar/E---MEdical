@@ -3,18 +3,16 @@
 // link to choose their own password, so no password is typed here.
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
-import { XCircleIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
+import { MailCheck } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { errorMessage } from '../../services/medicalService';
 import { SPECIALIZATIONS } from '../../utils/constants';
+import { PageTitle } from './ui';
 
 const EMPTY = { firstName: '', lastName: '', email: '', gender: 'MALE', phoneNumber: '', specialization: '' };
 
-const inputClass = 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500';
-
-const StaffForm = ({ kind, title, description, Icon, iconColour, submit, listPath }) => {
+const StaffForm = ({ kind, title, description, submit, listPath }) => {
   const { isAdmin } = useAuth();
   const navigate = useNavigate();
   const [formData, setFormData] = useState(EMPTY);
@@ -22,15 +20,7 @@ const StaffForm = ({ kind, title, description, Icon, iconColour, submit, listPat
   const isDoctor = kind === 'doctor';
 
   if (!isAdmin()) {
-    return (
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-12">
-        <div className="bg-red-50 border border-red-200 rounded-lg p-8 max-w-md mx-auto">
-          <XCircleIcon className="h-16 w-16 text-red-600 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-red-800 mb-4">Access Denied</h2>
-          <p className="text-red-600">Only administrators can add {kind}s.</p>
-        </div>
-      </motion.div>
-    );
+    return <p className="card p-8 text-center text-slate-600">Only administrators can add {kind}s.</p>;
   }
 
   const handleInputChange = (e) => {
@@ -63,87 +53,52 @@ const StaffForm = ({ kind, title, description, Icon, iconColour, submit, listPat
     }
   };
 
+  const field = (name, label, props = {}, hint) => (
+    <div>
+      <label htmlFor={`staff-${name}`} className="label">{label}</label>
+      <input id={`staff-${name}`} name={name} value={formData[name]} onChange={handleInputChange} className="input" {...props} />
+      {hint && <p className="mt-1.5 text-xs text-slate-600">{hint}</p>}
+    </div>
+  );
+
   return (
-    <div className="space-y-6">
-      {/* Breadcrumb */}
-      <div className="flex items-center text-sm text-gray-500">
-        <span className="text-blue-600">Dashboard</span>
-        <span className="mx-2">/</span>
-        <span>{title}</span>
-      </div>
-
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="max-w-4xl mx-auto space-y-6">
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-          {/* Header */}
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h3 className="text-lg font-semibold text-gray-900 flex items-center">
-              <Icon className={`h-6 w-6 mr-2 ${iconColour}`} />
-              {title}
-            </h3>
-            <p className="text-sm text-gray-600 mt-1">{description}</p>
+    <div className="max-w-3xl">
+      <PageTitle title={title} subtitle={description} />
+      <form onSubmit={handleSubmit} className="card">
+        <div className="grid gap-5 p-6 sm:grid-cols-2">
+          {field('firstName', 'First name', { required: true, autoComplete: 'off' })}
+          {field('lastName', 'Last name', { required: true, autoComplete: 'off' })}
+          {field('email', 'Work e-mail', { type: 'email', required: true, autoComplete: 'off' }, 'The invitation goes here.')}
+          {field('phoneNumber', 'Phone', { type: 'tel', inputMode: 'numeric', placeholder: '10 digits' }, 'Optional.')}
+          <div>
+            <label htmlFor="staff-gender" className="label">Gender</label>
+            <select id="staff-gender" name="gender" value={formData.gender} onChange={handleInputChange} className="input">
+              <option value="MALE">Male</option>
+              <option value="FEMALE">Female</option>
+              <option value="OTHER">Other</option>
+            </select>
           </div>
-
-          {/* Form */}
-          <div className="p-6">
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">First Name *</label>
-                  <input type="text" name="firstName" value={formData.firstName} onChange={handleInputChange} required className={inputClass} />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Last Name *</label>
-                  <input type="text" name="lastName" value={formData.lastName} onChange={handleInputChange} required className={inputClass} />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Email *</label>
-                  <input type="email" name="email" value={formData.email} onChange={handleInputChange} required className={inputClass}
-                    placeholder="They will receive a set-password link here" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Phone Number</label>
-                  <input type="tel" name="phoneNumber" value={formData.phoneNumber} onChange={handleInputChange} className={inputClass}
-                    placeholder="10 digits" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Gender</label>
-                  <select name="gender" value={formData.gender} onChange={handleInputChange} className={inputClass}>
-                    <option value="MALE">Male</option>
-                    <option value="FEMALE">Female</option>
-                    <option value="OTHER">Other</option>
-                  </select>
-                </div>
-                {isDoctor && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Specialization *</label>
-                    <select name="specialization" value={formData.specialization} onChange={handleInputChange} required className={inputClass}>
-                      <option value="">Select specialization</option>
-                      {SPECIALIZATIONS.map(s => <option key={s} value={s}>{s}</option>)}
-                    </select>
-                  </div>
-                )}
-              </div>
-
-              <div className="bg-blue-50 rounded-lg p-4 text-sm text-blue-800">
-                The account starts disabled. The new {kind} receives an e-mail with a link to choose a password,
-                which activates the account.
-              </div>
-
-              <div className="flex justify-end space-x-4 pt-6 border-t">
-                <button type="button" onClick={() => setFormData(EMPTY)}
-                  className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition duration-200">
-                  Reset
-                </button>
-                <button type="submit" disabled={loading}
-                  className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition duration-200 flex items-center disabled:opacity-50">
-                  {loading ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div> : <CheckCircleIcon className="h-4 w-4 mr-2" />}
-                  {loading ? 'Saving...' : `Add ${isDoctor ? 'Doctor' : 'Administrator'}`}
-                </button>
-              </div>
-            </form>
-          </div>
+          {isDoctor && (
+            <div>
+              <label htmlFor="staff-specialization" className="label">Specialization</label>
+              <select id="staff-specialization" name="specialization" value={formData.specialization} onChange={handleInputChange} required className="input">
+                <option value="">Choose one</option>
+                {SPECIALIZATIONS.map((s) => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+          )}
         </div>
-      </motion.div>
+        <div className="mx-6 flex items-start gap-3 rounded-lg bg-slate-50 p-4 text-sm text-slate-700">
+          <MailCheck className="mt-0.5 h-4 w-4 shrink-0 text-brand-700" aria-hidden="true" />
+          <p>The account stays switched off until the new {kind} opens the invitation e-mail and chooses a password.</p>
+        </div>
+        <div className="mt-6 flex justify-end gap-2 border-t border-slate-100 px-6 py-4">
+          <button type="button" onClick={() => setFormData(EMPTY)} className="btn-secondary">Clear</button>
+          <button type="submit" disabled={loading} className="btn-primary">
+            {loading ? 'Sending invitation…' : `Invite ${isDoctor ? 'doctor' : 'administrator'}`}
+          </button>
+        </div>
+      </form>
     </div>
   );
 };
