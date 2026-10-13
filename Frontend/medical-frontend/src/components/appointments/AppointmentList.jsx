@@ -18,11 +18,13 @@ import {
 import RescheduleDialog from './RescheduleDialog';
 import PrescriptionDialog from './PrescriptionDialog';
 import PrescriptionView from './PrescriptionView';
+import AdminAppointments from './AdminAppointments';
 import DataTable from '../common/DataTable';
 import StatusBadge from '../common/StatusBadge';
 import { getAppointmentsForRole, setAppointmentStatusForRole, errorMessage } from '../../services/medicalService';
 
-const AppointmentList = () => {
+/** A patient's or doctor's own appointments (small lists, filtered in the browser). */
+const OwnAppointments = () => {
   const { user, isPatient, isDoctor } = useAuth();
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -277,6 +279,12 @@ const AppointmentList = () => {
       </motion.div>
     </div>
   );
+};
+
+/** Admins get the server-side searchable table; patients and doctors see their own list. */
+const AppointmentList = () => {
+  const { user } = useAuth();
+  return user?.role === 'ROLE_ADMIN' ? <AdminAppointments /> : <OwnAppointments />;
 };
 
 export default AppointmentList;

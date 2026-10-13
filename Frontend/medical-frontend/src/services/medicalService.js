@@ -4,6 +4,10 @@ import api from './api';
 
 const data = (promise) => promise.then((res) => res.data);
 
+// Drop empty filters so the query string only carries what the user actually chose
+const clean = (params = {}) =>
+  Object.fromEntries(Object.entries(params).filter(([, v]) => v !== undefined && v !== null && v !== ''));
+
 export const medicalService = {
   // ---- Public (no login needed) ----
   getDoctors: (specialization) =>
@@ -64,6 +68,11 @@ export const medicalService = {
   addAdmin: (admin) => data(api.post('/admin/admins', admin)),
   setUserEnabled: (id, enabled) => data(api.patch(`/admin/users/${id}/enabled`, { enabled })),
   getMessages: () => data(api.get('/admin/messages')),
+  // Server-side search: { q, status, doctorId, from, to, sort, page, size } -> { content, page, totalElements, totalPages }
+  searchAppointments: (params) => data(api.get('/admin/appointments/search', { params: clean(params) })),
+  // { role: 'USER' | 'DOCTOR' | 'ADMIN', q, page, size }
+  searchAccounts: (params) => data(api.get('/admin/accounts', { params: clean(params) })),
+  getAnalytics: (days = 30) => data(api.get('/admin/analytics', { params: { days } })),
   setMessageHandled: (id, handled) => data(api.patch(`/admin/messages/${id}`, { handled })),
 };
 

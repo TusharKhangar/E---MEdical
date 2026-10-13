@@ -10,14 +10,21 @@ import StatusBadge from '../common/StatusBadge';
 const AdminDashboard = () => {
   const { user } = useAuth();
   const [stats, setStats] = useState(null);
-  const [appointments, setAppointments] = useState([]);
+  const [pending, setPending] = useState([]);
+  const [recent, setRecent] = useState([]);
   const [busyId, setBusyId] = useState(null);
 
   const load = async () => {
     try {
-      const [s, a] = await Promise.all([medicalService.getStats(), medicalService.getAllAppointments()]);
+      // Only the handful of rows the cards show, not the whole appointments table
+      const [s, p, r] = await Promise.all([
+        medicalService.getStats(),
+        medicalService.searchAppointments({ status: 'PENDING', sort: 'soonest', size: 6 }),
+        medicalService.searchAppointments({ sort: 'booked', size: 6 })
+      ]);
       setStats(s);
-      setAppointments(a);
+      setPending(p.content);
+      setRecent(r.content);
     } catch (error) {
       toast.error(errorMessage(error, 'Could not load the dashboard'));
     }
@@ -49,10 +56,6 @@ const AdminDashboard = () => {
     }
   };
 
-  const pending = appointments.filter(a => a.status === 'PENDING').slice(0, 6);
-  const recent = [...appointments]
-    .sort((a, b) => (b.regtime || '').localeCompare(a.regtime || ''))
-    .slice(0, 6);
 
   const cards = [
     { label: 'Patients', value: stats?.patients, note: 'Registered accounts', icon: '👥', colour: 'text-blue-600' },

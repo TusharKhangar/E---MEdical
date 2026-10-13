@@ -18,6 +18,7 @@ const MENU_BY_ROLE = {
   ],
   ROLE_ADMIN: [
     { path: '/dashboard/appointments', icon: '📅', label: 'Appointments' },
+    { path: '/dashboard/analytics', icon: '📊', label: 'Analytics' },
     { path: '/dashboard/users', icon: '👥', label: 'Patients' },
     { path: '/dashboard/doctor-details', icon: '👨‍⚕️', label: 'Doctors' },
     { path: '/dashboard/admin-details', icon: '🛡️', label: 'Administrators' },
