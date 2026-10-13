@@ -10,13 +10,19 @@ A hospital appointment platform where **patients** book doctors, **doctors** man
 
 **Live:** <https://e-medical-224w.onrender.com> (free tier, the first visit can take a minute to wake up) · register as a patient with your own e-mail · **API docs:** [Swagger UI](https://e-medical-224w.onrender.com/swagger-ui.html)
 
-| Admin console | Patient dashboard |
-| --- | --- |
-| ![Admin dashboard](docs/screenshots/admin-dashboard.jpg) | ![Patient dashboard](docs/screenshots/patient-dashboard.jpg) |
+![Home page](docs/screenshots/home.png)
 
-| Appointment management | Doctor directory |
+| Booking | Admin console |
 | --- | --- |
-| ![Appointments](docs/screenshots/appointments.jpg) | ![Doctors](docs/screenshots/doctors.jpg) |
+| ![Booking](docs/screenshots/booking.png) | ![Admin dashboard](docs/screenshots/admin-dashboard.png) |
+
+| Doctor's day | Analytics |
+| --- | --- |
+| ![Doctor dashboard](docs/screenshots/doctor-dashboard.png) | ![Analytics](docs/screenshots/analytics.png) |
+
+| Patient dashboard | Appointment search | On a phone |
+| --- | --- | --- |
+| ![Patient dashboard](docs/screenshots/patient-dashboard.png) | ![Appointments](docs/screenshots/appointments.png) | ![Mobile](docs/screenshots/mobile.png) |
 
 ## What it does
 
@@ -52,10 +58,10 @@ In production the React build is packaged inside the Spring Boot jar and served 
 | Layer | Technology |
 | --- | --- |
 | Backend | Java 21, Spring Boot 3.2, Spring Security, Spring Data JPA / Hibernate, Bean Validation, JJWT, zxcvbn password strength, Spring Mail, Actuator |
-| Frontend | React 18, React Router 6, Vite 5, Tailwind CSS, Axios, Framer Motion, react-hot-toast |
+| Frontend | React 18, React Router 6, Vite 5, Tailwind CSS, Lucide icons, Axios, react-hot-toast |
 | Database | MySQL 8 or PostgreSQL 16 (H2 in-memory for tests) |
 | Delivery | Docker multi-stage build, docker-compose, GitHub Actions CI, Render blueprint, OpenAPI / Swagger UI |
-| Tests | JUnit 5, MockMvc, Spring Boot integration tests on H2 (53 tests); Vitest + Testing Library (17 tests) |
+| Tests | JUnit 5, MockMvc, Spring Boot integration tests on H2 (53 tests); Vitest + Testing Library (17 tests); Playwright browser tests (35) |
 
 ## Run it locally
 
@@ -160,8 +166,9 @@ Errors are returned as plain text with a matching HTTP status (`400` validation,
 ## Tests
 
 ```bash
-cd bioMedical && ./mvnw test            # 54 backend tests
+cd bioMedical && ./mvnw test            # 60 backend tests
 cd Frontend/medical-frontend && npm test  # 17 frontend tests (Vitest + Testing Library)
+cd Frontend/medical-frontend && npm run e2e  # 35 browser tests (Playwright) against the built jar
 ```
 
 Backend:
@@ -173,6 +180,8 @@ Backend:
 - `AccountSetupIntegrationTest`, `EmailServiceTest` and `LoginAttemptServiceTest`: first-admin creation, retiring the old demo accounts, the Brevo request and its failure handling, lockout window with a controllable clock.
 
 Frontend: the server-side pager, route guarding by role, the role-aware sidebar, the API error and role helpers, and department grouping.
+
+Browser (Playwright, `Frontend/medical-frontend/e2e/`, run by CI against the real jar on an in-memory database with e-mail in log-only mode): sign-up through the e-mailed link, sign-in, sign-out and password reset; an admin invites a doctor, the doctor sets hours and a day off, a patient books and reschedules, the doctor confirms and writes a prescription, the patient downloads the PDF; role guards, forged and expired tokens, cross-patient access, security headers; axe accessibility checks on every page for every role; no side-scrolling on a phone. `tools/loadtest.mjs` fills a local instance with realistic data and measures every endpoint.
 
 CI runs the backend tests, the frontend lint, tests and build, and a Docker image build on every push.
 

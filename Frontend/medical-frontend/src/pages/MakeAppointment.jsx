@@ -107,7 +107,7 @@ const MakeAppointment = () => {
     <form onSubmit={submit}>
       <PageTitle title="Book an appointment" subtitle="Pick a doctor, then a day and one of their free times." />
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_20rem]">
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
         <div className="space-y-6">
           <Step n={1} title="Choose a doctor">
             <label htmlFor="book-department" className="label">Department</label>

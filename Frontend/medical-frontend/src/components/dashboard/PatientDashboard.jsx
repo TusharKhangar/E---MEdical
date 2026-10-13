@@ -92,7 +92,7 @@ const PatientDashboard = () => {
         )}
       </section>
 
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-3 gap-3 sm:gap-4">
         <Stat label="Upcoming" value={upcoming.length} Icon={Clock} />
         <Stat label="Completed" value={appointments.filter((a) => a.status === 'COMPLETED').length} Icon={CheckCircle2} />
         <Stat label="Prescriptions" value={appointments.filter((a) => a.hasPrescription).length} Icon={FileText} />

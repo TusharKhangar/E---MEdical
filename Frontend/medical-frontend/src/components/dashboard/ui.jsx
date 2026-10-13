@@ -14,9 +14,9 @@ export const PageTitle = ({ title, subtitle, children }) => (
 
 /** A number with a label, for the row of figures at the top of a dashboard. */
 export const Stat = ({ label, value, note, Icon }) => (
-  <div className="card p-5">
-    <div className="flex items-center justify-between">
-      <p className="text-sm font-medium text-slate-600">{label}</p>
+  <div className="card min-w-0 p-4 sm:p-5">
+    <div className="flex items-center justify-between gap-2">
+      <p className="text-xs font-medium text-slate-600 sm:text-sm">{label}</p>
       {Icon && <Icon className="h-4 w-4 text-slate-400" strokeWidth={1.75} aria-hidden="true" />}
     </div>
     <p className="mt-2 text-2xl font-semibold text-slate-900">{value ?? '–'}</p>
