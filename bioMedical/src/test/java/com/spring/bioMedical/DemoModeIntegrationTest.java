@@ -98,6 +98,16 @@ class DemoModeIntegrationTest {
 				userRepository.findByEmail("admin@emedical.demo").orElseThrow().getConfirmationToken()).isNull();
 	}
 
+	@Test
+	void wrongPasswordsNeverLockTheSharedDemoAccounts() throws Exception {
+		for (int i = 0; i < 8; i++) {
+			mockMvc.perform(post("/api/login").contentType(MediaType.APPLICATION_JSON)
+					.content(json(Map.of("username", "admin@emedical.demo", "password", "wrong" + i))))
+					.andExpect(status().isUnauthorized());
+		}
+		login("admin@emedical.demo");
+	}
+
 	private void createUser(String email, String role) {
 		User user = new User();
 		user.setEmail(email);
