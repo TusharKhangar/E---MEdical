@@ -8,7 +8,7 @@ A hospital appointment platform where **patients** book doctors, **doctors** man
 ![React 18](https://img.shields.io/badge/React-18-61DAFB)
 ![License](https://img.shields.io/badge/license-Apache%202.0-blue)
 
-**Live demo:** <https://e-medical-224w.onrender.com> (free tier, the first visit can take a minute to wake up) · sign in with the [demo accounts](#demo-accounts)
+**Live demo:** <https://e-medical-224w.onrender.com> (free tier, the first visit can take a minute to wake up) · sign in with the [demo accounts](#demo-accounts) · **API docs:** [Swagger UI](https://e-medical-224w.onrender.com/swagger-ui.html)
 
 | Admin console | Patient dashboard |
 | --- | --- |
@@ -24,8 +24,9 @@ A hospital appointment platform where **patients** book doctors, **doctors** man
 - **Doctors** see the appointments booked with them, confirm, complete or cancel each one, and keep their profile and specialization up to date.
 - **Administrators** get live counts, confirm bookings on behalf of doctors, manage every appointment, list patients, doctors and admins, enable or disable accounts, and onboard new staff, who receive an e-mail link to set their own password.
 - **Everyone** can change their password; forgotten passwords are reset through an e-mailed, single-use link.
+- **Visitors** browse live departments and doctors, see real clinic numbers on the home page, and send messages through the Contact page, which land in an admin inbox.
 
-Business rules live in the service layer: slots are 09:00 to 17:00 on the hour (closed 13:00 to 14:00), no double booking per doctor, no bookings in the past or more than 90 days ahead, and status moves only `PENDING → CONFIRMED → COMPLETED` or to `CANCELLED`.
+Business rules live in the service layer: slots are 09:00 to 17:00 on the hour (closed 13:00 to 14:00), no double booking per doctor, no patient booked twice at the same time, no bookings in the past or more than 90 days ahead, and status moves only `PENDING → CONFIRMED → COMPLETED` or to `CANCELLED`. Five wrong passwords lock an e-mail for 15 minutes.
 
 ## Architecture
 
@@ -52,8 +53,8 @@ In production the React build is packaged inside the Spring Boot jar and served 
 | Backend | Java 21, Spring Boot 3.2, Spring Security, Spring Data JPA / Hibernate, Bean Validation, JJWT, zxcvbn password strength, Spring Mail, Actuator |
 | Frontend | React 18, React Router 6, Vite 5, Tailwind CSS, Axios, Framer Motion, react-hot-toast |
 | Database | MySQL 8 or PostgreSQL 16 (H2 in-memory for tests) |
-| Delivery | Docker multi-stage build, docker-compose, GitHub Actions CI, Render blueprint |
-| Tests | JUnit 5, MockMvc web-layer tests, Spring Boot integration tests on H2 (19 tests) |
+| Delivery | Docker multi-stage build, docker-compose, GitHub Actions CI, Render blueprint, OpenAPI / Swagger UI |
+| Tests | JUnit 5, MockMvc, Spring Boot integration tests on H2 (33 tests); Vitest + Testing Library (13 tests) |
 
 ## Run it locally
 
@@ -96,6 +97,8 @@ Set `SEED_DEMO_DATA=true` in `.env` to get the demo accounts on an empty databas
 
 Registration, staff invitations and password resets send a link by e-mail. Without `MAIL_USERNAME` / `MAIL_PASSWORD` the message is written to the application log instead, link included, so every flow still works offline. For Gmail use an [app password](https://support.google.com/accounts/answer/185833), not your account password.
 
+**Demo mode** (`DEMO_MODE=true`, on for the hosted demo): sign-up and staff-invite responses also return the e-mailed link, and the UI shows it, so visitors can finish registering without an inbox. The shared `@emedical.demo` accounts can't have their password changed, reset or be disabled, so one visitor can't lock others out. Never enable it where accounts are real.
+
 ## Configuration
 
 All settings come from environment variables (see [`.env.example`](.env.example)).
@@ -110,6 +113,8 @@ All settings come from environment variables (see [`.env.example`](.env.example)
 | `FRONTEND_URL` | Base URL used in e-mailed links | `http://localhost:5173` |
 | `CORS_ALLOWED_ORIGINS` | Browser origins allowed to call the API cross-origin | localhost dev ports |
 | `SEED_DEMO_DATA` | Create demo accounts on an empty database | `false` |
+| `DEMO_MODE` | Return e-mailed links in responses and protect demo accounts (public demos only) | `false` |
+| `LOGIN_MAX_FAILURES`, `LOGIN_LOCK_MINUTES` | Sign-in lockout | `5`, `15` |
 | `PORT` | HTTP port | `8080` |
 
 ## API
@@ -138,19 +143,28 @@ All endpoints are under `/api`. Protected ones need `Authorization: Bearer <jwt>
 | PATCH | `/admin/users/{id}/enabled` | admin | Enable or disable an account |
 | GET | `/admin/appointments` | admin | Every appointment |
 | PATCH | `/admin/appointments/{id}/status` | admin | Change any appointment |
+| GET, PATCH | `/admin/messages`, `/admin/messages/{id}` | admin | Contact-page inbox, mark handled |
+| GET | `/stats` | public | Headline numbers for the home page |
+| POST | `/contact` | public | Send a message (3 per e-mail per hour) |
 
-Errors are returned as plain text with a matching HTTP status (`400` validation, `401` sign-in needed, `403` wrong role, `404` not found, `409` conflict such as a taken slot).
+Errors are returned as plain text with a matching HTTP status (`400` validation, `401` sign-in needed, `403` wrong role, `404` not found, `409` conflict such as a taken slot, `429` too many attempts). The interactive reference is at `/swagger-ui.html`; click **Authorize** and paste the `jwt` from `/api/login`.
 
 ## Tests
 
 ```bash
-cd bioMedical && ./mvnw test
+cd bioMedical && ./mvnw test            # 33 backend tests
+cd Frontend/medical-frontend && npm test  # 13 frontend tests (Vitest + Testing Library)
 ```
 
+Backend:
 - `RegisterControllerTest`: web-layer tests for sign-up and confirmation with the real security filter chain.
 - `AppointmentFlowIntegrationTest`: full HTTP flows on an in-memory database: register → confirm → log in, admin invites a doctor who sets a password, booking with slot conflicts and validation, who may cancel what, role enforcement, forgot/reset password, profile update.
+- `HardeningIntegrationTest`: error codes (400/401/403/404), a patient can't be booked twice at once, login lockout, contact form and its rate limit, public stats, OpenAPI docs and security headers.
+- `DemoModeIntegrationTest` and `LoginAttemptServiceTest`: demo links, protected demo accounts, lockout window with a controllable clock.
 
-CI runs the backend tests, the frontend lint and build, and a Docker image build on every push.
+Frontend: route guarding by role, the role-aware sidebar, the API error and role helpers, and department grouping.
+
+CI runs the backend tests, the frontend lint, tests and build, and a Docker image build on every push.
 
 ## Deploy
 
@@ -184,6 +198,8 @@ Dockerfile, docker-compose.yml, render.yaml, .github/workflows/maven.yml
 - JWTs are HS256-signed with a secret from the environment; the API is stateless with CSRF disabled.
 - Password hashes, tokens and other people's contact details are never serialized; the public doctor list hides e-mail and phone.
 - Password strength is measured with zxcvbn (score ≥ 3), not just length.
+- Five failed sign-ins lock the e-mail for 15 minutes; the contact form is limited per sender.
+- `Content-Security-Policy`, `Referrer-Policy`, `Permissions-Policy`, HSTS, `X-Content-Type-Options` and frame options are set on every response.
 - Secrets live in environment variables; `.env` is git-ignored.
 
 ## License

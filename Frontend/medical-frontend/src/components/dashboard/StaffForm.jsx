@@ -9,6 +9,7 @@ import { XCircleIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
 import { useAuth } from '../../context/AuthContext';
 import { errorMessage } from '../../services/medicalService';
 import { SPECIALIZATIONS } from '../../utils/constants';
+import DemoLinkNotice from '../common/DemoLinkNotice';
 
 const EMPTY = { firstName: '', lastName: '', email: '', gender: 'MALE', phoneNumber: '', specialization: '' };
 
@@ -19,6 +20,7 @@ const StaffForm = ({ kind, title, description, Icon, iconColour, submit, listPat
   const navigate = useNavigate();
   const [formData, setFormData] = useState(EMPTY);
   const [loading, setLoading] = useState(false);
+  const [invite, setInvite] = useState(null);
   const isDoctor = kind === 'doctor';
 
   if (!isAdmin()) {
@@ -55,7 +57,12 @@ const StaffForm = ({ kind, title, description, Icon, iconColour, submit, listPat
       const created = await submit(body);
       toast.success(`${created.firstName} ${created.lastName} added. They have been e-mailed a link to set a password.`);
       setFormData(EMPTY);
-      navigate(listPath);
+      if (created.inviteLink) {
+        // Demo site: no e-mail is sent, so show the invite link here
+        setInvite(created);
+      } else {
+        navigate(listPath);
+      }
     } catch (error) {
       toast.error(errorMessage(error, `Failed to add ${kind}`));
     } finally {
@@ -72,7 +79,13 @@ const StaffForm = ({ kind, title, description, Icon, iconColour, submit, listPat
         <span>{title}</span>
       </div>
 
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="max-w-4xl mx-auto">
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="max-w-4xl mx-auto space-y-6">
+        {invite && (
+          <DemoLinkNotice link={invite.inviteLink} title={`${invite.firstName} ${invite.lastName} was invited`}>
+            On a real deployment they would get this link by e-mail. Open it in a private window to set their password
+            and sign in as them.
+          </DemoLinkNotice>
+        )}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200">
           {/* Header */}
           <div className="px-6 py-4 border-b border-gray-200">

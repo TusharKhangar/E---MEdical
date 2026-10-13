@@ -45,7 +45,7 @@
         const serverMessage = typeof data === 'string' && data.trim() ? data : data?.message;
 
         // Sign-in and registration pages show their own messages
-        const isAuthCall = /\/(login|register|confirmPassword|resetPassword|forgotPassword)$/.test(url);
+        const isAuthCall = /\/(login|register|confirmPassword|resetPassword|forgotPassword|contact)$/.test(url);
         if (isAuthCall) {
           return Promise.reject(error);
         }
@@ -88,7 +88,7 @@
             break;
 
           case 429:
-            toast.error('Too many requests. Please try again later.');
+            toast.error(serverMessage || 'Too many requests. Please try again later.');
             break;
 
           case 500:

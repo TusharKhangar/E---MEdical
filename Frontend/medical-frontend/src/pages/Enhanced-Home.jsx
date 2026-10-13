@@ -1,55 +1,26 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import Header from '../components/common/Header';
+import { medicalService } from '../services/medicalService';
+import { departmentsFromDoctors } from '../utils/departments';
 
 const Home = () => {
   const [selectedDepartment, setSelectedDepartment] = useState(0);
 
-  const departments = [
-    {
-      id: 1,
-      name: 'Cardiology',
-      icon: '💓',
-      description: 'Comprehensive heart care and cardiovascular treatments with state-of-the-art equipment and experienced cardiologists.',
-      color: '#e91e63'
-    },
-    {
-      id: 2,
-      name: 'Neurology',
-      icon: '🧠',
-      description: 'Advanced neurological care and brain treatments including diagnosis and treatment of nervous system disorders.',
-      color: '#3f51b5'
-    },
-    {
-      id: 3,
-      name: 'Diagnostic',
-      icon: '🔬',
-      description: 'State-of-the-art diagnostic and imaging services including MRI, CT scan, X-ray, and laboratory tests.',
-      color: '#4caf50'
-    },
-    {
-      id: 4,
-      name: 'Dental',
-      icon: '🦷',
-      description: 'Complete dental care and oral health services including general dentistry, orthodontics, and oral surgery.',
-      color: '#ff9800'
-    },
-    {
-      id: 5,
-      name: 'Ophthalmology',
-      icon: '👁️',
-      description: 'Comprehensive eye care and vision services including cataract surgery, retinal treatments, and vision correction.',
-      color: '#9c27b0'
-    },
-    {
-      id: 6,
-      name: 'Emergency',
-      icon: '🚨',
-      description: '24/7 emergency medical care and services with fully equipped trauma center and emergency specialists.',
-      color: '#f44336'
-    }
-  ];
+  // Departments and headline numbers come from the live database
+  const [departments, setDepartments] = useState([]);
+  const [stats, setStats] = useState(null);
+
+  useEffect(() => {
+    medicalService.getDoctors()
+      .then((doctors) => setDepartments(departmentsFromDoctors(doctors)))
+      .catch(() => setDepartments([]));
+    medicalService.getPublicStats()
+      .then(setStats)
+      .catch(() => setStats(null));
+  }, []);
+
+  const current = departments[selectedDepartment];
 
   const services = [
     {
@@ -132,10 +103,10 @@ const Home = () => {
 
   // Enhanced Statistics
   const statistics = [
-    { number: '500+', label: 'Happy Patients', icon: '😊' },
-    { number: '50+', label: 'Expert Doctors', icon: '👨‍⚕️' },
-    { number: '15+', label: 'Years Experience', icon: '🏆' },
-    { number: '24/7', label: 'Emergency Care', icon: '🚨' }
+    { number: stats ? String(stats.doctors) : '…', label: 'Doctors On Staff', icon: '👨‍⚕️' },
+    { number: stats ? String(stats.departments) : '…', label: 'Departments', icon: '🏥' },
+    { number: stats ? String(stats.patients) : '…', label: 'Registered Patients', icon: '😊' },
+    { number: stats ? String(stats.completedVisits) : '…', label: 'Completed Visits', icon: '✅' }
   ];
 
   // New Testimonials Data
@@ -220,8 +191,8 @@ const Home = () => {
       <section className="py-16 bg-gradient-to-r from-blue-600 to-purple-600 text-white">
         <div className="container mx-auto px-4">
           <div className="text-center mb-12">
-            <h2 className="text-4xl font-bold mb-4">SOME FUN FACTS</h2>
-            <p className="text-xl opacity-90">Numbers that speak for our excellence</p>
+            <h2 className="text-4xl font-bold mb-4">E-MEDICAL TODAY</h2>
+            <p className="text-xl opacity-90">Live numbers from our clinic</p>
           </div>
           <div className="grid md:grid-cols-4 gap-8">
             {statistics.map((stat, index) => (
@@ -249,9 +220,10 @@ const Home = () => {
             <div className="lg:w-1/3 bg-blue-600 text-white p-8">
               <h3 className="text-2xl font-bold mb-6">Medical Departments</h3>
               <div className="space-y-2">
+                {departments.length === 0 && <p className="text-blue-100">Loading departments...</p>}
                 {departments.map((dept, index) => (
                   <motion.div
-                    key={dept.id}
+                    key={dept.name}
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: index * 0.1 }}
@@ -276,24 +248,27 @@ const Home = () => {
                 transition={{ duration: 0.5 }}
                 className="text-center"
               >
-                <div className="text-6xl mb-6">{departments[selectedDepartment].icon}</div>
-                <h2 className="text-3xl font-bold text-gray-800 mb-6">
-                  {departments[selectedDepartment].name} Department
-                </h2>
-                <p className="text-gray-600 mb-6 leading-relaxed">
-                  {departments[selectedDepartment].description}
-                </p>
-                <p className="text-gray-600 mb-8 leading-relaxed">
-                  Our specialized team uses cutting-edge technology and evidence-based practices
-                  to deliver exceptional patient care. We are committed to your health and recovery
-                  with personalized treatment plans.
-                </p>
-                <button
-                  className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg transition duration-300 transform hover:scale-105"
-                  style={{ backgroundColor: departments[selectedDepartment].color }}
-                >
-                  Learn More
-                </button>
+                {current && (
+                  <>
+                    <div className="text-6xl mb-6">{current.icon}</div>
+                    <h2 className="text-3xl font-bold text-gray-800 mb-6">
+                      {current.name} Department
+                    </h2>
+                    <p className="text-gray-600 mb-6 leading-relaxed">
+                      {current.description}
+                    </p>
+                    <p className="text-gray-600 mb-8 leading-relaxed">
+                      {current.doctorCount} doctor{current.doctorCount === 1 ? '' : 's'} available for appointments.
+                    </p>
+                    <Link
+                      to={`/doctors?department=${encodeURIComponent(current.name)}`}
+                      className="inline-block text-white font-bold py-3 px-6 rounded-lg transition duration-300 transform hover:scale-105"
+                      style={{ backgroundColor: current.color }}
+                    >
+                      Meet the doctors
+                    </Link>
+                  </>
+                )}
               </motion.div>
             </div>
           </div>

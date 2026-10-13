@@ -35,6 +35,7 @@ import DoctorDetails from '../components/dashboard/DoctorDetails';
 import AppointmentList from '../components/appointments/AppointmentList';
 import MakeAppointment from '../pages/MakeAppointment';
 import MyProfile from '../components/dashboard/MyProfile';
+import MessagesInbox from '../components/dashboard/MessagesInbox';
 
 const LoadingSpinner = () => (
   <div className="flex justify-center items-center min-h-screen">
@@ -98,6 +99,7 @@ const AppRouter = () => {
         <Route path="add-doctor" element={adminOnly(<AddDoctorForm />)} />
         <Route path="admin-details" element={adminOnly(<AdminDetails />)} />
         <Route path="add-admin" element={adminOnly(<AddAdminForm />)} />
+        <Route path="messages" element={adminOnly(<MessagesInbox />)} />
 
         {/* Account */}
         <Route path="my-profile" element={<MyProfile />} />

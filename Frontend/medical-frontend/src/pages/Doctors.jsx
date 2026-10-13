@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { medicalService } from '../services/medicalService';
 import { useAuth } from '../context/AuthContext';
@@ -9,7 +9,10 @@ const ICONS = { MALE: '👨‍⚕️', FEMALE: '👩‍⚕️' };
 const Doctors = () => {
   const { isAuthenticated, isPatient } = useAuth();
   const [doctors, setDoctors] = useState([]);
-  const [department, setDepartment] = useState('');
+  const [searchParams, setSearchParams] = useSearchParams();
+  // The selected department lives in the URL (?department=...), so links from other pages can preselect it
+  const department = searchParams.get('department') || '';
+  const setDepartment = (value) => setSearchParams(value ? { department: value } : {});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
