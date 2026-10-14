@@ -23,8 +23,9 @@ import org.springframework.web.client.RestClientResponseException;
 /**
  * Sends the app's e-mails, in this order of preference:
  * <ol>
- * <li>Brevo's HTTPS API when {@code BREVO_API_KEY} is set. Use this on hosts that block outgoing SMTP,
- * such as Render's free plan (ports 25, 465 and 587 are closed there).</li>
+ * <li>Brevo's HTTPS API when {@code BREVO_API_KEY} is set, or Mailjet's when {@code MAILJET_API_KEY} and
+ * {@code MAILJET_SECRET_KEY} are set. Use one of these on hosts that block outgoing SMTP, such as Render's
+ * free plan (ports 25, 465 and 587 are closed there).</li>
  * <li>SMTP (Gmail by default) when {@code MAIL_USERNAME} and {@code MAIL_PASSWORD} are set.</li>
  * <li>Otherwise the message is only logged, so local development works without any account.</li>
  * </ol>
@@ -34,12 +35,19 @@ import org.springframework.web.client.RestClientResponseException;
 public class EmailService {
 	private static final Logger logger = LoggerFactory.getLogger(EmailService.class);
 	private static final String BREVO_URL = "https://api.brevo.com/v3/smtp/email";
+	private static final String MAILJET_URL = "https://api.mailjet.com/v3.1/send";
 
 	private final JavaMailSender mailSender;
 	private final RestClient http;
 
 	@Value("${app.mail.brevo-api-key:}")
 	private String brevoApiKey;
+
+	@Value("${app.mail.mailjet-api-key:}")
+	private String mailjetApiKey;
+
+	@Value("${app.mail.mailjet-secret-key:}")
+	private String mailjetSecretKey;
 
 	// The address e-mails come from; falls back to the SMTP login
 	@Value("${app.mail.from:${spring.mail.username:}}")
@@ -63,6 +71,9 @@ public class EmailService {
 		if (!isBlank(brevoApiKey)) {
 			return "brevo";
 		}
+		if (!isBlank(mailjetApiKey) && !isBlank(mailjetSecretKey)) {
+			return "mailjet";
+		}
 		if (mailSender != null && !isBlank(smtpUsername)) {
 			return "smtp";
 		}
@@ -73,6 +84,7 @@ public class EmailService {
 	public String describe() {
 		return switch (mode()) {
 			case "brevo" -> "Brevo (HTTPS API), sending as " + fromAddress;
+			case "mailjet" -> "Mailjet (HTTPS API), sending as " + fromAddress;
 			case "smtp" -> "SMTP, sending as " + (isBlank(fromAddress) ? smtpUsername : fromAddress);
 			default -> "Not configured: e-mails are only written to the server log";
 		};
@@ -94,11 +106,12 @@ public class EmailService {
 	public Optional<String> sendNow(SimpleMailMessage email) {
 		return switch (mode()) {
 			case "brevo" -> sendWithBrevo(email);
+			case "mailjet" -> sendWithMailjet(email);
 			case "smtp" -> sendWithSmtp(email);
 			default -> {
 				logger.warn("E-mail is not configured (set BREVO_API_KEY, or MAIL_USERNAME and MAIL_PASSWORD). "
 						+ "Message to {} not sent:\n{}", (Object) email.getTo(), email.getText());
-				yield Optional.of("E-mail is not configured. Set BREVO_API_KEY and MAIL_FROM (or MAIL_USERNAME and MAIL_PASSWORD).");
+				yield Optional.of("E-mail is not configured. Set MAILJET_API_KEY and MAILJET_SECRET_KEY (or BREVO_API_KEY) with MAIL_FROM, or MAIL_USERNAME and MAIL_PASSWORD.");
 			}
 		};
 	}
@@ -125,6 +138,30 @@ public class EmailService {
 			return Optional.of("Brevo refused the message (" + e.getStatusCode().value() + "): " + e.getResponseBodyAsString());
 		} catch (RestClientException e) {
 			return Optional.of("Could not reach Brevo: " + e.getMessage());
+		}
+	}
+
+	private Optional<String> sendWithMailjet(SimpleMailMessage email) {
+		List<Map<String, String>> to = Arrays.stream(email.getTo()).map(address -> Map.of("Email", address)).toList();
+		Map<String, Object> message = Map.of(
+				"From", Map.of("Email", fromAddress, "Name", fromName),
+				"To", to,
+				"Subject", email.getSubject() == null ? "" : email.getSubject(),
+				"TextPart", email.getText() == null ? "" : email.getText());
+		try {
+			http.post().uri(MAILJET_URL)
+					.headers(h -> h.setBasicAuth(mailjetApiKey, mailjetSecretKey))
+					.contentType(MediaType.APPLICATION_JSON)
+					.accept(MediaType.APPLICATION_JSON)
+					.body(Map.of("Messages", List.of(message)))
+					.retrieve()
+					.toBodilessEntity();
+			logger.info("Email sent via Mailjet to: {}", (Object) email.getTo());
+			return Optional.empty();
+		} catch (RestClientResponseException e) {
+			return Optional.of("Mailjet refused the message (" + e.getStatusCode().value() + "): " + e.getResponseBodyAsString());
+		} catch (RestClientException e) {
+			return Optional.of("Could not reach Mailjet: " + e.getMessage());
 		}
 	}
 

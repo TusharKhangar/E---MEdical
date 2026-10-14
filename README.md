@@ -98,11 +98,11 @@ Set `ADMIN_EMAIL` and `ADMIN_PASSWORD` (environment or `.env`). On startup the a
 
 Registration, staff invitations, password resets and appointment updates are sent by e-mail, in this order of preference:
 
-1. **Brevo HTTPS API** (`BREVO_API_KEY` and a verified sender in `MAIL_FROM`). Use this on Render's free plan, which blocks outgoing SMTP ports 25, 465 and 587.
+1. **An HTTPS e-mail API**: Brevo (`BREVO_API_KEY`) or Mailjet (`MAILJET_API_KEY` and `MAILJET_SECRET_KEY`), with a sender address you verified there in `MAIL_FROM`. Use one of these on Render's free plan, which blocks outgoing SMTP ports 25, 465 and 587. Both have free tiers and verify a single sender address, no domain needed.
 2. **SMTP** (`MAIL_USERNAME` / `MAIL_PASSWORD`, Gmail by default; use an [app password](https://support.google.com/accounts/answer/185833)).
 3. Neither set: the message is written to the application log, link included, so local development works offline.
 
-The startup log says which one is active (`E-mail delivery: brevo | smtp | log-only`), and the admin dashboard shows it with a **Send me a test e-mail** button that reports the provider's answer.
+The startup log says which one is active (`E-mail delivery: brevo | mailjet | smtp | log-only`), and the admin dashboard shows it with a **Send me a test e-mail** button that reports the provider's answer.
 
 ## Configuration
 
@@ -118,7 +118,7 @@ All settings come from environment variables (see [`.env.example`](.env.example)
 | `FRONTEND_URL` | Base URL used in e-mailed links | `http://localhost:5173` |
 | `CORS_ALLOWED_ORIGINS` | Browser origins allowed to call the API cross-origin | localhost dev ports |
 | `ADMIN_EMAIL`, `ADMIN_PASSWORD` | First administrator, created on startup if new | empty |
-| `BREVO_API_KEY`, `MAIL_FROM`, `MAIL_FROM_NAME` | E-mail over Brevo's HTTPS API (takes priority over SMTP) | empty, `MAIL_USERNAME`, `E-Medical` |
+| `BREVO_API_KEY` or `MAILJET_API_KEY` + `MAILJET_SECRET_KEY`, `MAIL_FROM`, `MAIL_FROM_NAME` | E-mail over an HTTPS API (takes priority over SMTP) | empty, `MAIL_USERNAME`, `E-Medical` |
 | `LOGIN_MAX_FAILURES`, `LOGIN_LOCK_MINUTES` | Sign-in lockout | `5`, `15` |
 | `REMINDERS_ENABLED`, `REMINDERS_CRON`, `APP_TIME_ZONE` | Day-before reminder e-mails | `true`, `0 0 18 * * *`, `Asia/Kolkata` |
 | `PORT` | HTTP port | `8080` |

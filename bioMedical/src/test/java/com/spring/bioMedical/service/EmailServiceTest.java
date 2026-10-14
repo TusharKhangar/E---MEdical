@@ -36,6 +36,26 @@ class EmailServiceTest {
 		ReflectionTestUtils.setField(service, "fromName", "E-Medical");
 		ReflectionTestUtils.setField(service, "smtpUsername", "");
 		ReflectionTestUtils.setField(service, "brevoApiKey", "");
+		ReflectionTestUtils.setField(service, "mailjetApiKey", "");
+		ReflectionTestUtils.setField(service, "mailjetSecretKey", "");
+	}
+
+	@Test
+	void withMailjetKeysItCallsMailjetWithBasicAuth() {
+		ReflectionTestUtils.setField(service, "mailjetApiKey", "mj-key");
+		ReflectionTestUtils.setField(service, "mailjetSecretKey", "mj-secret");
+		brevo.expect(requestTo("https://api.mailjet.com/v3.1/send"))
+				.andExpect(method(HttpMethod.POST))
+				.andExpect(header("Authorization", "Basic " + java.util.Base64.getEncoder().encodeToString("mj-key:mj-secret".getBytes())))
+				.andExpect(jsonPath("$.Messages[0].From.Email").value("clinic@example.com"))
+				.andExpect(jsonPath("$.Messages[0].To[0].Email").value("patient@example.com"))
+				.andExpect(jsonPath("$.Messages[0].Subject").value("Confirm your e-mail"))
+				.andExpect(jsonPath("$.Messages[0].TextPart").value("Click the link"))
+				.andRespond(withSuccess("{\"Messages\":[{\"Status\":\"success\"}]}", MediaType.APPLICATION_JSON));
+
+		assertThat(service.mode()).isEqualTo("mailjet");
+		assertThat(service.sendNow(message())).isEmpty();
+		brevo.verify();
 	}
 
 	@Test
