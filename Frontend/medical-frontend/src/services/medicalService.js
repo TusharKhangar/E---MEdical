@@ -93,8 +93,15 @@ export const setAppointmentStatusForRole = (role, id, status) => {
 };
 
 /** The error text the backend sent, or a fallback. The API answers errors with plain text. */
+// The free hosting plan puts the server to sleep when nobody uses it; the first request can take a
+// minute or two and may time out or come back as a 502/503 from the host instead of from the app
+const WAKING = 'The server is waking up (this can take a minute on the free plan). Please try again shortly.';
+
 export const errorMessage = (error, fallback = 'Something went wrong. Please try again.') => {
+  if (error && !error.response) return WAKING;
+  if ([502, 503, 504].includes(error?.response?.status)) return WAKING;
   const body = error?.response?.data;
+  if (typeof body === 'string' && /<html/i.test(body)) return WAKING;
   if (typeof body === 'string' && body.trim()) return body;
   return body?.message || fallback;
 };

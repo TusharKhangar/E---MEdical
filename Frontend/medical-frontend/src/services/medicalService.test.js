@@ -16,8 +16,14 @@ describe('errorMessage', () => {
     expect(errorMessage({ response: { data: { message: 'Nope' } } })).toBe('Nope');
   });
 
+  it('explains a sleeping or restarting server instead of a vague failure', () => {
+    expect(errorMessage({ message: 'Network Error' })).toMatch(/waking up/);
+    expect(errorMessage({ response: { status: 503, data: '' } })).toMatch(/waking up/);
+    expect(errorMessage({ response: { status: 502, data: '<html><body>Bad gateway</body></html>' } })).toMatch(/waking up/);
+  });
+
   it('falls back when there is no usable body', () => {
-    expect(errorMessage({}, 'Fallback')).toBe('Fallback');
+    expect(errorMessage({ response: {} }, 'Fallback')).toBe('Fallback');
     expect(errorMessage({ response: { data: '   ' } }, 'Fallback')).toBe('Fallback');
   });
 });

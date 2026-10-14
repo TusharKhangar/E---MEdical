@@ -63,6 +63,28 @@ class AccountSetupIntegrationTest {
 	}
 
 	@Test
+	void adminResetTakesOverAnExistingAccount() throws Exception {
+		User patient = user("owner@clinic.test");
+		patient.setEnabled(false);
+		users.save(patient);
+
+		accountSetup.run(null); // without the flag: left alone
+		assertThat(users.findByEmail("owner@clinic.test").orElseThrow().getRole()).isEqualTo("ROLE_USER");
+
+		org.springframework.test.util.ReflectionTestUtils.setField(accountSetup, "adminReset", true);
+		try {
+			accountSetup.run(null);
+		} finally {
+			org.springframework.test.util.ReflectionTestUtils.setField(accountSetup, "adminReset", false);
+		}
+		User admin = users.findByEmail("owner@clinic.test").orElseThrow();
+		assertThat(admin.getRole()).isEqualTo("ROLE_ADMIN");
+		assertThat(admin.getEnabled()).isTrue();
+		assertThat(passwordEncoder.matches(OWNER_PASSWORD, admin.getPassword())).isTrue();
+		assertThat(users.count()).isEqualTo(1);
+	}
+
+	@Test
 	void disablesTheOldDemoAccountsOnly() throws Exception {
 		users.save(user("admin@emedical.demo"));
 		users.save(user("Doctor@EMedical.demo"));

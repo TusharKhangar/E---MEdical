@@ -4,6 +4,7 @@
 #   MAILJET_API_KEY + MAILJET_SECRET_KEY (or BREVO_API_KEY) + MAIL_FROM  e-mail over HTTPS
 #   (Render's free plan blocks SMTP, so Gmail SMTP can't be used here)
 #   ADMIN_EMAIL + ADMIN_PASSWORD  the first administrator, created on startup if that e-mail is new
+#   (add ADMIN_RESET=true for one deploy to turn an existing account with that e-mail into the admin)
 services:
   - type: web
     name: e-medical
