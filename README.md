@@ -118,6 +118,7 @@ All settings come from environment variables (see [`.env.example`](.env.example)
 | `FRONTEND_URL` | Base URL used in e-mailed links | `http://localhost:5173` |
 | `CORS_ALLOWED_ORIGINS` | Browser origins allowed to call the API cross-origin | localhost dev ports |
 | `ADMIN_EMAIL`, `ADMIN_PASSWORD` | First administrator, created on startup if new | empty |
+| `ADMIN_RESET` | `true` for one deploy: an existing `ADMIN_EMAIL` account becomes an enabled admin with `ADMIN_PASSWORD` | `false` |
 | `BREVO_API_KEY` or `MAILJET_API_KEY` + `MAILJET_SECRET_KEY`, `MAIL_FROM`, `MAIL_FROM_NAME` | E-mail over an HTTPS API (takes priority over SMTP) | empty, `MAIL_USERNAME`, `E-Medical` |
 | `LOGIN_MAX_FAILURES`, `LOGIN_LOCK_MINUTES` | Sign-in lockout | `5`, `15` |
 | `REMINDERS_ENABLED`, `REMINDERS_CRON`, `APP_TIME_ZONE` | Day-before reminder e-mails | `true`, `0 0 18 * * *`, `Asia/Kolkata` |

@@ -40,6 +40,11 @@ public class AccountSetup implements ApplicationRunner {
 	@Value("${app.admin.password:}")
 	private String adminPassword;
 
+	// ADMIN_RESET=true: if ADMIN_EMAIL already has an account, make it an enabled admin with ADMIN_PASSWORD.
+	// For recovering access; switch it off again afterwards so later password changes stick.
+	@Value("${app.admin.reset:false}")
+	private boolean adminReset;
+
 	public AccountSetup(UserRepository users, PasswordEncoder passwordEncoder, EmailService emailService) {
 		this.users = users;
 		this.passwordEncoder = passwordEncoder;
@@ -72,12 +77,26 @@ public class AccountSetup implements ApplicationRunner {
 			return;
 		}
 		String email = adminEmail.trim().toLowerCase();
-		if (users.findByEmail(email).isPresent()) {
+		var existing = users.findByEmail(email);
+		if (existing.isPresent() && !adminReset) {
+			logger.info("ADMIN_EMAIL {} already has an account (role {}, {}); it was left unchanged. "
+					+ "To make it an administrator with ADMIN_PASSWORD, set ADMIN_RESET=true for one deploy.",
+					email, existing.get().getRole(), existing.get().getEnabled() ? "enabled" : "disabled");
 			return;
 		}
 		if (adminPassword == null || PasswordStrength.isTooWeak(adminPassword)) {
 			logger.error("ADMIN_EMAIL is set but ADMIN_PASSWORD is missing or too weak; no administrator was created. {}",
 					PasswordStrength.TOO_WEAK_MESSAGE);
+			return;
+		}
+		if (existing.isPresent()) {
+			User user = existing.get();
+			user.setRole("ROLE_ADMIN");
+			user.setEnabled(true);
+			user.setConfirmationToken(null);
+			user.setPassword(passwordEncoder.encode(adminPassword));
+			users.save(user);
+			logger.warn("ADMIN_RESET: {} is now an enabled administrator with ADMIN_PASSWORD. Remove ADMIN_RESET now.", email);
 			return;
 		}
 		User admin = new User();
