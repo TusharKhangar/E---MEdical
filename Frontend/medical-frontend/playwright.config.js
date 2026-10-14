@@ -21,7 +21,6 @@ export default defineConfig({
   reporter: process.env.CI ? [['list'], ['html', { open: 'never', outputFolder: 'e2e/.report' }]] : 'list',
   timeout: 45_000,
   expect: { timeout: 10_000 },
-  globalSetup: './e2e/global-setup.js',
   use: {
     baseURL: external || `http://localhost:${PORT}`,
     trace: 'retain-on-failure',
