@@ -55,6 +55,9 @@ services:
         sync: false
       - key: APP_TIME_ZONE
         value: Asia/Kolkata
+      # Token Prometheus / Grafana Cloud sends to read /actuator/prometheus (see docs/OBSERVABILITY.md)
+      - key: METRICS_TOKEN
+        generateValue: true
       - key: JAVA_OPTS
         value: -XX:MaxRAMPercentage=75 -Xss512k
 

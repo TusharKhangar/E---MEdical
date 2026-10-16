@@ -1,0 +1,7 @@
+apiVersion: 1
+providers:
+  - name: e-medical
+    folder: E-Medical
+    type: file
+    options:
+      path: /var/lib/grafana/dashboards

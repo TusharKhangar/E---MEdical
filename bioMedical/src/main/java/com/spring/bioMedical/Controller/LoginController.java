@@ -4,6 +4,8 @@ import java.time.LocalDateTime;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+
+import io.micrometer.core.instrument.Metrics;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -54,6 +56,7 @@ public class LoginController {
 
 		long locked = loginAttempts.minutesLocked(email);
 		if (locked > 0) {
+			loginMetric("locked");
 			return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
 					.body("Too many failed sign-in attempts. Please try again in " + locked + " minute"
 							+ (locked == 1 ? "" : "s") + ", or reset your password.");
@@ -70,13 +73,21 @@ public class LoginController {
 			User user = adminServiceImplementation.findByEmail(authentication.getName());
 			user.setLastseen(LocalDateTime.now().withNano(0).toString());
 			adminServiceImplementation.save(user);
+			loginMetric("success");
 			return ResponseEntity.ok(new LoginResponse(jwt, user));
 		} catch (DisabledException e) {
+			loginMetric("not_activated");
 			return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
 					.body("Please confirm your e-mail and set a password using the link we sent you.");
 		} catch (AuthenticationException e) {
 			loginAttempts.recordFailure(email);
+			loginMetric("wrong_password");
 			return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid email or password");
 		}
+	}
+
+	/** Metric emedical_logins_total{result}: a spike in wrong_password or locked can mean password guessing. */
+	private static void loginMetric(String result) {
+		Metrics.counter("emedical.logins", "result", result).increment();
 	}
 }

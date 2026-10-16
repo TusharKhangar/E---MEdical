@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  One JSON object per log line, for log tools (Grafana Loki, Datadog, ELK) to search by field.
+  Turn on with LOGGING_CONFIG=classpath:logback-json.xml. Each line carries requestId from the MDC.
+-->
+<configuration>
+	<appender name="JSON" class="ch.qos.logback.core.ConsoleAppender">
+		<encoder class="net.logstash.logback.encoder.LogstashEncoder">
+			<customFields>{"application":"e-medical"}</customFields>
+		</encoder>
+	</appender>
+	<root level="INFO">
+		<appender-ref ref="JSON"/>
+	</root>
+</configuration>

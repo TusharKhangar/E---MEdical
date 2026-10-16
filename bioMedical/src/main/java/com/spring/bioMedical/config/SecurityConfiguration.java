@@ -1,5 +1,12 @@
 package com.spring.bioMedical.config;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.util.function.Supplier;
+
+import org.springframework.security.authorization.AuthorizationDecision;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.web.access.intercept.RequestAuthorizationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -43,6 +50,10 @@ public class SecurityConfiguration {
 	// Browser origins allowed to call the API, from app.cors.allowed-origins
 	@Value("${app.cors.allowed-origins:http://localhost:5173,http://localhost:3000}")
 	private List<String> allowedOrigins;
+
+	// Prometheus scrapes /actuator/prometheus with "Authorization: Bearer <METRICS_TOKEN>". Unset: admins only.
+	@Value("${app.metrics-token:}")
+	private String metricsToken;
 
 	public SecurityConfiguration(JwtFilter jwtFilter, AuthEntryPointJwt authEntryPoint) {
 		this.jwtFilter = jwtFilter;
@@ -114,6 +125,9 @@ public class SecurityConfiguration {
 						// Health check for Docker and the hosting platform
 						.requestMatchers("/actuator/health", "/actuator/info").permitAll()
 
+						// Metrics: the Prometheus scraper's token, or a signed-in admin
+						.requestMatchers("/actuator/prometheus").access(this::metricsAccess)
+
 						// Spring's error page, so 400/404 responses are not turned into 403
 						.requestMatchers("/error").permitAll()
 
@@ -143,5 +157,13 @@ public class SecurityConfiguration {
 				.addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
 
 		return http.build();
+	}
+
+	private AuthorizationDecision metricsAccess(Supplier<Authentication> authentication, RequestAuthorizationContext context) {
+		String header = context.getRequest().getHeader("Authorization");
+		boolean scraper = !metricsToken.isBlank() && header != null && MessageDigest.isEqual(
+				header.getBytes(StandardCharsets.UTF_8), ("Bearer " + metricsToken).getBytes(StandardCharsets.UTF_8));
+		boolean admin = authentication.get().getAuthorities().stream().anyMatch(a -> "ROLE_ADMIN".equals(a.getAuthority()));
+		return new AuthorizationDecision(scraper || admin);
 	}
 }
