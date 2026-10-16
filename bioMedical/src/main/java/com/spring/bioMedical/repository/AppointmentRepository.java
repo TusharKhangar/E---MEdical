@@ -51,6 +51,10 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Long> 
 			""")
 	List<String> findTakenTimes(@Param("doctorId") Long doctorId, @Param("date") String date);
 
+	/** True when the account has any appointment, as patient (by e-mail) or as doctor. */
+	@Query("select count(a) > 0 from Appointment a where lower(a.email) = lower(:email) or a.doctorId = :userId")
+	boolean hasAnyFor(@Param("email") String email, @Param("userId") Long userId);
+
 	long countByStatus(String status);
 
 	/** HQL: active appointments on a date whose reminder e-mail hasn't gone out yet. */
