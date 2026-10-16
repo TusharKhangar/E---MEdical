@@ -91,6 +91,12 @@ const AdminDashboard = () => {
                   ? `${mail.description}. Sign-up links, reminders and password resets go out from here.`
                   : 'Sign-up links, reminders and password resets are only written to the server log. Set BREVO_API_KEY and MAIL_FROM in the hosting settings.'}
               </p>
+              {(mail.queued > 0 || mail.failed > 0) && (
+                <p className="mt-1 text-sm text-slate-600">
+                  {mail.queued > 0 && `${mail.queued} waiting to be sent or retried. `}
+                  {mail.failed > 0 && <span className="font-medium text-red-700">{mail.failed} could not be sent after every retry.</span>}
+                </p>
+              )}
             </div>
           </div>
           <button onClick={sendTestEmail} disabled={testing} className="btn-secondary">
