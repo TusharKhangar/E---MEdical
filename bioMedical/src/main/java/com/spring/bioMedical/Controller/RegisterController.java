@@ -35,6 +35,10 @@ import com.spring.bioMedical.service.UserService;
 @Tag(name = "Authentication")
 public class RegisterController {
 
+	// The public doctor list is cached (see CacheConfig); optional so web-layer tests don't need it
+	@org.springframework.beans.factory.annotation.Autowired
+	private org.springframework.beans.factory.ObjectProvider<com.spring.bioMedical.config.CacheConfig.Evictions> cacheEvictions;
+
 	private final UserService userService;
 	private final EmailService emailService;
 	private final PasswordEncoder passwordEncoder;
@@ -131,6 +135,8 @@ public class RegisterController {
 
 			// Save user
 			userService.saveUser(user.get());
+			// An invited doctor shows up in the (cached) public directory now, not a minute later
+			cacheEvictions.ifAvailable(e -> e.ifDoctor(user.get()));
 
 			return ResponseEntity.ok("Your password has been set!");
 		} else {

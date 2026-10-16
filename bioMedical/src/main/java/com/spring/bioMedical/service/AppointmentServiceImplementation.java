@@ -113,7 +113,7 @@ public class AppointmentServiceImplementation  {
 		appointment.setStatus(Appointment.PENDING);
 		appointment.setRegtime(LocalDateTime.now().withNano(0).toString());
 		Appointment saved = appointmentRepository.save(appointment);
-		evictions.slots(doctor.getId(), date);
+		evictions.appointment(doctor.getId(), date);
 		Metrics.counter("emedical.bookings", "result", "booked").increment();
 		notifications.bookingReceived(saved);
 		return saved;
@@ -133,8 +133,8 @@ public class AppointmentServiceImplementation  {
 			throw new ApiException(HttpStatus.BAD_REQUEST, "That is already the time of this appointment.");
 		}
 		checkSlot(patient, doctor, date, time);
-		evictions.slots(doctor.getId(), appointment.getDate());
-		evictions.slots(doctor.getId(), date);
+		evictions.appointment(doctor.getId(), appointment.getDate());
+		evictions.appointment(doctor.getId(), date);
 		appointment.setDate(date);
 		appointment.setTime(time);
 		appointment.setStatus(Appointment.PENDING);
@@ -207,7 +207,7 @@ public class AppointmentServiceImplementation  {
 		}
 		appointment.setStatus(newStatus);
 		Appointment saved = appointmentRepository.save(appointment);
-		evictions.slots(saved.getDoctorId(), saved.getDate()); // a cancellation frees the slot
+		evictions.appointment(saved.getDoctorId(), saved.getDate()); // a cancellation frees the slot
 		notifications.statusChanged(saved, byPatient);
 		return saved;
 	}

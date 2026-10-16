@@ -130,10 +130,30 @@ class CachingIntegrationTest {
 	}
 
 	@Test
-	void analyticsIsServedFromTheCacheForAMinute() {
+	void anInvitedDoctorAppearsAsSoonAsTheySetTheirPassword() throws Exception {
+		mockMvc.perform(get("/api/doctors")).andExpect(jsonPath("$", hasSize(1)));
+		mockMvc.perform(post("/api/admin/doctors").header("Authorization", "Bearer " + login("admin@test.com"))
+				.contentType(MediaType.APPLICATION_JSON).content(objectMapper.writeValueAsString(
+						Map.of("email", "new@test.com", "firstName", "Asha", "lastName", "Rao", "specialization", "ENT"))))
+				.andExpect(status().isCreated());
+		String token = users.findByEmail("new@test.com").orElseThrow().getConfirmationToken();
+		mockMvc.perform(post("/api/confirmPassword").contentType(MediaType.APPLICATION_JSON)
+				.content(objectMapper.writeValueAsString(Map.of("token", token, "password", PASSWORD))))
+				.andExpect(status().isOk());
+		mockMvc.perform(get("/api/doctors")).andExpect(jsonPath("$", hasSize(2)));
+	}
+
+	@Test
+	void analyticsIsCachedUntilAnAppointmentChanges() throws Exception {
 		AnalyticsService.Analytics first = analytics.forLastDays(30);
 		assertThat(analytics.forLastDays(30)).isSameAs(first);
 		assertThat(analytics.forLastDays(7)).isNotSameAs(first);
+
+		mockMvc.perform(post("/api/user/appointments").header("Authorization", "Bearer " + login("pat@test.com"))
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(objectMapper.writeValueAsString(Map.of("doctorId", doctor.getId(), "date", monday.toString(), "time", "11:00"))))
+				.andExpect(status().isCreated());
+		assertThat(analytics.forLastDays(30).total()).isEqualTo(first.total() + 1);
 	}
 
 	@Test

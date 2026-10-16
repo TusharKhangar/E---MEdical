@@ -28,9 +28,9 @@ public class CacheConfig {
 
 	/** Free slots for one doctor on one day. Evicted by bookings, cancellations and schedule changes. */
 	public static final String SLOTS = "slots";
-	/** The public doctor directory. Evicted when an admin enables, disables or deletes an account. */
+	/** The public doctor directory. Evicted when a doctor is enabled, disabled, deleted, activated or edits their profile. */
 	public static final String DOCTORS = "doctors";
-	/** The admin analytics page. Not evicted: the numbers may be up to a minute old. */
+	/** The admin analytics page. Evicted whenever an appointment is booked, moved or changes status. */
 	public static final String ANALYTICS = "analytics";
 
 	static final Map<String, Duration> TTL = Map.of(
@@ -60,6 +60,12 @@ public class CacheConfig {
 			this.caches = caches;
 		}
 
+		/** An appointment was booked, moved or changed status: its day's slots and the analytics change. */
+		public void appointment(Long doctorId, String date) {
+			slots(doctorId, date);
+			clear(ANALYTICS);
+		}
+
 		public void slots(Long doctorId, String date) {
 			afterCommit(() -> {
 				var cache = caches.getCache(SLOTS);
@@ -76,6 +82,13 @@ public class CacheConfig {
 
 		public void doctors() {
 			clear(DOCTORS);
+		}
+
+		/** A doctor became visible (set their password) or changed what the directory shows. */
+		public void ifDoctor(com.spring.bioMedical.entity.User user) {
+			if ("ROLE_DOCTOR".equals(user.getRole())) {
+				doctors();
+			}
 		}
 
 		private void clear(String name) {

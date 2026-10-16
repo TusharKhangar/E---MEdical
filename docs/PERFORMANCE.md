@@ -51,13 +51,14 @@ What is cached and why it stays correct:
 | Cache | Lifetime | Cleared when |
 |---|---|---|
 | Free slots per doctor and day | 30 s | that day gets a booking, a cancellation, a reschedule or a status change; any change to the doctor's hours or days off |
-| Public doctor directory | 60 s | an admin enables, disables or deletes an account (a new doctor appears within a minute) |
-| Admin analytics per range | 60 s | never: the page may be up to a minute behind |
+| Public doctor directory | 60 s | an admin enables, disables or deletes an account; an invited doctor sets their password; a doctor edits their profile |
+| Admin analytics per range | 60 s | any appointment is booked, moved or changes status |
 
+- The benchmark only reads, so it shows the cache at its best. Under real use each booking clears that day's slots and the analytics, and the next read rebuilds them.
 - Caches are cleared **after the transaction commits**. Clearing before commit would let a concurrent read put the old value straight back.
 - **Nothing that decides a booking reads a cache.** The double-booking check always queries the database under a row lock, so a stale slot list can at worst offer a slot that was just taken, and booking it gets a clear "slot already booked" reply.
 - Hit and miss counts are in Prometheus (`cache_gets_total{cache, result}`) and on the Grafana dashboard.
-- The benchmark keeps revisiting the same 120 doctor-days, so these numbers are the best case. Real traffic spreads over more days and hits the slot cache less often.
+- It also keeps revisiting the same 120 doctor-days. Real traffic spreads over more days and hits the slot cache less often.
 - `CACHE_TYPE=redis` with `REDIS_URL` moves the caches to Redis, so several app instances share them and evictions reach all of them. Values are Java-serialized, and a test checks every cached type survives that. Running against a live Redis server is not tested here: no Redis on this machine.
 
 ## Bugs the load test found
