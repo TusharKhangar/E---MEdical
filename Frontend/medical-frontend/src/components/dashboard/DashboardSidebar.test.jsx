@@ -25,7 +25,7 @@ const menuLabels = () =>
 describe('DashboardSidebar', () => {
   it('shows admin tools only to administrators', () => {
     renderFor('ROLE_ADMIN');
-    expect(menuLabels()).toEqual(expect.arrayContaining(['Patients', 'Doctors', 'Add Doctor', 'Messages']));
+    expect(menuLabels()).toEqual(expect.arrayContaining(['Patients', 'Doctors', 'Add Doctor', 'Messages', 'Audit log']));
   });
 
   it('shows patients booking, not admin tools', () => {

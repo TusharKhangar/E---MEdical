@@ -222,6 +222,7 @@ Dockerfile, docker-compose.yml, render.yaml, .github/workflows/maven.yml
 - Five failed sign-ins lock the e-mail for 15 minutes; the contact form is limited per sender.
 - `Content-Security-Policy`, `Referrer-Policy`, `Permissions-Policy`, HSTS, `X-Content-Type-Options` and frame options are set on every response.
 - Secrets live in environment variables; `.env` is git-ignored.
+- Every administrator action (enabling, disabling or deleting an account, inviting staff, changing an appointment) is written to an append-only audit log in the same transaction, with who, what, to whom, when and the request id. Admins read it under **Audit log**; there is no endpoint to edit or delete it.
 
 ## License
 

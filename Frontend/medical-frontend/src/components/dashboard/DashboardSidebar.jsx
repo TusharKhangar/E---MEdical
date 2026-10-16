@@ -2,7 +2,7 @@
 import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
-  BarChart3, CalendarClock, CalendarDays, CalendarPlus, Inbox, LayoutDashboard, LogOut, ShieldCheck,
+  BarChart3, CalendarClock, CalendarDays, CalendarPlus, History, Inbox, LayoutDashboard, LogOut, ShieldCheck,
   Stethoscope, UserCircle, UserPlus, Users, X,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
@@ -38,6 +38,7 @@ const MENU_BY_ROLE = {
       { path: '/dashboard/admin-details', Icon: ShieldCheck, label: 'Administrators' },
       { path: '/dashboard/add-doctor', Icon: UserPlus, label: 'Add Doctor' },
       { path: '/dashboard/add-admin', Icon: UserPlus, label: 'Add Admin' },
+      { path: '/dashboard/audit', Icon: History, label: 'Audit log' },
     ] },
   ],
 };
