@@ -14,7 +14,6 @@ import org.springframework.http.MediaType;
 import org.springframework.mail.MailException;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
@@ -29,7 +28,9 @@ import org.springframework.web.client.RestClientResponseException;
  * <li>SMTP (Gmail by default) when {@code MAIL_USERNAME} and {@code MAIL_PASSWORD} are set.</li>
  * <li>Otherwise the message is only logged, so local development works without any account.</li>
  * </ol>
- * Sending is asynchronous, so a slow or failing mail provider never delays a request.
+ * {@link #sendEmail} only queues the message in the outbox table (see {@link OutboxWorker}), in the caller's
+ * transaction; it is sent right after commit and retried if the provider fails, so a slow or failing provider
+ * never delays or breaks a request.
  */
 @Service("emailService")
 public class EmailService {
@@ -90,8 +91,21 @@ public class EmailService {
 		};
 	}
 
-	@Async
+	// Optional so unit tests can build an EmailService on its own; in the app it is always there
+	private ObjectProvider<OutboxWorker> outbox;
+
+	@Autowired
+	void setOutbox(ObjectProvider<OutboxWorker> outbox) {
+		this.outbox = outbox;
+	}
+
+	/** Queues the e-mail; it is sent after the current transaction commits and retried on failure. */
 	public void sendEmail(SimpleMailMessage email) {
+		OutboxWorker worker = outbox == null ? null : outbox.getIfAvailable();
+		if (worker != null) {
+			worker.enqueue(email);
+			return;
+		}
 		Optional<String> error = sendNow(email);
 		// In log-only mode sendNow has already logged the whole message, link included
 		if (error.isPresent() && !"log-only".equals(mode())) {

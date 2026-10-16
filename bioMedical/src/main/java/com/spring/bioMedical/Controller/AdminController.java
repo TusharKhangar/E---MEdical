@@ -39,6 +39,9 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 
+import com.spring.bioMedical.entity.OutboxEmail;
+import com.spring.bioMedical.repository.OutboxEmailRepository;
+
 /**
  * @
  */
@@ -59,6 +62,9 @@ public class AdminController {
 
 	@Value("${app.frontend-url:http://localhost:5173}")
 	private String frontendUrl;
+
+	@Autowired
+	private OutboxEmailRepository outbox;
 
 	@Autowired
 	public AdminController(AdminServiceImplementation obj, AppointmentServiceImplementation app, EmailService emailService,
@@ -202,7 +208,10 @@ public class AdminController {
 	@GetMapping("/mail")
 	public ResponseEntity<Map<String, Object>> getMailStatus() {
 		return ResponseEntity.ok(Map.of("mode", emailService.mode(), "description", emailService.describe(),
-				"configured", !"log-only".equals(emailService.mode())));
+				"configured", !"log-only".equals(emailService.mode()),
+				// The outbox: e-mails still to send (or retry), and ones that failed every retry
+				"queued", outbox.countByStatus(OutboxEmail.PENDING) + outbox.countByStatus(OutboxEmail.SENDING),
+				"failed", outbox.countByStatus(OutboxEmail.FAILED)));
 	}
 
 	/** Sends a test e-mail to the signed-in administrator and reports the provider's answer. */

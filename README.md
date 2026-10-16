@@ -104,6 +104,8 @@ Registration, staff invitations, password resets and appointment updates are sen
 
 The startup log says which one is active (`E-mail delivery: brevo | mailjet | smtp | log-only`), and the admin dashboard shows it with a **Send me a test e-mail** button that reports the provider's answer.
 
+E-mails go through an **outbox** table (transactional outbox pattern). The message is saved in the same database transaction as the change that caused it, so a booking never commits without its e-mail, and no e-mail goes out for a change that rolled back. It is sent right after commit. If the provider fails, it is retried after 1 minute, 5 minutes, 30 minutes, 2 hours and 12 hours, then marked failed, and the admin dashboard shows how many are waiting or failed. Workers claim a message with a conditional `UPDATE`, so two workers or two app instances never send it twice. Sent messages are deleted after 7 days because they contain sign-up and reset links. See `OutboxWorker`.
+
 ## Configuration
 
 All settings come from environment variables (see [`.env.example`](.env.example)).
