@@ -16,6 +16,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import com.spring.bioMedical.dto.AdminDto;
@@ -24,7 +25,10 @@ import com.spring.bioMedical.dto.PageResponse;
 import com.spring.bioMedical.entity.User;
 import com.spring.bioMedical.entity.Appointment;
 import com.spring.bioMedical.entity.ContactMessage;
+import com.spring.bioMedical.repository.AppointmentRepository;
 import com.spring.bioMedical.repository.ContactMessageRepository;
+import com.spring.bioMedical.repository.DoctorLeaveRepository;
+import com.spring.bioMedical.repository.DoctorScheduleRepository;
 import com.spring.bioMedical.exception.ApiException;
 import com.spring.bioMedical.service.AdminServiceImplementation;
 import com.spring.bioMedical.service.AppointmentServiceImplementation;
@@ -49,18 +53,25 @@ public class AdminController {
 	private final EmailService emailService;
 	private final ContactMessageRepository contactMessages;
 	private final AnalyticsService analyticsService;
+	private final AppointmentRepository appointments;
+	private final DoctorScheduleRepository schedules;
+	private final DoctorLeaveRepository leaves;
 
 	@Value("${app.frontend-url:http://localhost:5173}")
 	private String frontendUrl;
 
 	@Autowired
 	public AdminController(AdminServiceImplementation obj, AppointmentServiceImplementation app, EmailService emailService,
-			ContactMessageRepository contactMessages, AnalyticsService analyticsService) {
+			ContactMessageRepository contactMessages, AnalyticsService analyticsService, AppointmentRepository appointments,
+			DoctorScheduleRepository schedules, DoctorLeaveRepository leaves) {
 		this.adminServiceImplementation = obj;
 		this.appointmentServiceImplementation = app;
 		this.emailService = emailService;
 		this.contactMessages = contactMessages;
 		this.analyticsService = analyticsService;
+		this.appointments = appointments;
+		this.schedules = schedules;
+		this.leaves = leaves;
 	}
 
 	/** Messages sent through the public Contact page, newest first. */
@@ -122,6 +133,29 @@ public class AdminController {
 		user.setEnabled(enabled);
 		adminServiceImplementation.save(user);
 		return ResponseEntity.ok(new AdminDto(user));
+	}
+
+	/**
+	 * Delete an account that has no appointments (a test account or an unused invite).
+	 * Accounts with appointments keep their medical history: disable them instead.
+	 */
+	@DeleteMapping("/users/{id}")
+	@Transactional
+	public ResponseEntity<Void> deleteAccount(@PathVariable Long id) {
+		User me = adminServiceImplementation.findByEmail(getLoggedInUsername());
+		if (me.getId().equals(id)) {
+			throw new ApiException(HttpStatus.BAD_REQUEST, "You cannot delete your own account.");
+		}
+		User user = adminServiceImplementation.findById(id)
+				.orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Account not found"));
+		if (appointments.hasAnyFor(user.getEmail(), user.getId())) {
+			throw new ApiException(HttpStatus.CONFLICT,
+					"This account has appointments, so deleting it would lose medical records. Disable it instead.");
+		}
+		schedules.deleteByDoctorId(user.getId());
+		leaves.deleteByDoctorId(user.getId());
+		adminServiceImplementation.delete(user);
+		return ResponseEntity.noContent().build();
 	}
 
 	@GetMapping("/profile")

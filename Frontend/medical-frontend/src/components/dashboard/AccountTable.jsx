@@ -1,5 +1,5 @@
 // src/components/dashboard/AccountTable.jsx
-// Shared admin screen for listing patients, doctors or administrators, with an enable/disable switch.
+// Shared admin screen for listing patients, doctors or administrators, with enable/disable and delete.
 // Search and paging run on the server, so it stays quick with thousands of accounts.
 import React, { useState, useEffect, useCallback } from 'react';
 import toast from 'react-hot-toast';
@@ -48,6 +48,25 @@ const AccountTable = ({ title, subtitle, role, extraColumns = [], action, search
     }
   };
 
+  // The server refuses accounts that have appointments, so medical history is never lost
+  const deleteAccount = async (account) => {
+    if (!window.confirm(`Delete ${account.firstName} ${account.lastName} (${account.email})? This cannot be undone.`)) return;
+    setBusyId(account.id);
+    try {
+      await medicalService.deleteAccount(account.id);
+      setPage(prev => ({
+        ...prev,
+        content: prev.content.filter(a => a.id !== account.id),
+        totalElements: prev.totalElements - 1
+      }));
+      toast.success(`${account.firstName} deleted`);
+    } catch (error) {
+      toast.error(errorMessage(error, 'Could not delete the account'));
+    } finally {
+      setBusyId(null);
+    }
+  };
+
   const columns = [
     { key: 'firstName', title: 'Name', render: (_, row) => (
       <span className="flex items-center gap-3">
@@ -75,7 +94,7 @@ const AccountTable = ({ title, subtitle, role, extraColumns = [], action, search
       key: 'actions',
       title: <span className="sr-only">Actions</span>,
       render: (_, row) => (
-        <div className="text-right">
+        <div className="flex justify-end gap-2">
           <button
             onClick={() => toggleEnabled(row)}
             disabled={busyId === row.id || row.id === me?.id}
@@ -83,6 +102,15 @@ const AccountTable = ({ title, subtitle, role, extraColumns = [], action, search
             className={row.enabled ? 'btn-secondary btn-sm' : 'btn-primary btn-sm'}
           >
             {row.enabled ? 'Disable' : 'Enable'}
+          </button>
+          <button
+            onClick={() => deleteAccount(row)}
+            disabled={busyId === row.id || row.id === me?.id}
+            title={row.id === me?.id ? 'You cannot delete your own account' : 'Only possible when the account has no appointments'}
+            aria-label={`Delete ${row.firstName} ${row.lastName}`}
+            className="btn-danger btn-sm"
+          >
+            Delete
           </button>
         </div>
       )

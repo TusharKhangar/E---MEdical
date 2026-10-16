@@ -67,6 +67,8 @@ export const medicalService = {
   addDoctor: (doctor) => data(api.post('/admin/doctors', doctor)),
   addAdmin: (admin) => data(api.post('/admin/admins', admin)),
   setUserEnabled: (id, enabled) => data(api.patch(`/admin/users/${id}/enabled`, { enabled })),
+  // Only works for accounts with no appointments; the server explains why otherwise
+  deleteAccount: (id) => data(api.delete(`/admin/users/${id}`)),
   getMessages: () => data(api.get('/admin/messages')),
   // Server-side search: { q, status, doctorId, from, to, sort, page, size } -> { content, page, totalElements, totalPages }
   searchAppointments: (params) => data(api.get('/admin/appointments/search', { params: clean(params) })),
