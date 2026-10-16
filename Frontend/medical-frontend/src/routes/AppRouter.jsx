@@ -35,6 +35,7 @@ import AppointmentList from '../components/appointments/AppointmentList';
 import MakeAppointment from '../pages/MakeAppointment';
 import MyProfile from '../components/dashboard/MyProfile';
 import MessagesInbox from '../components/dashboard/MessagesInbox';
+import AuditLog from '../components/dashboard/AuditLog';
 import Analytics from '../components/dashboard/Analytics';
 import DoctorAvailability from '../components/dashboard/DoctorAvailability';
 
@@ -101,6 +102,7 @@ const AppRouter = () => {
         <Route path="add-admin" element={adminOnly(<AddAdminForm />)} />
         <Route path="messages" element={adminOnly(<MessagesInbox />)} />
         <Route path="analytics" element={adminOnly(<Analytics />)} />
+        <Route path="audit" element={adminOnly(<AuditLog />)} />
 
         {/* Doctor: working hours and days off */}
         <Route path="availability" element={

@@ -70,6 +70,8 @@ export const medicalService = {
   // Only works for accounts with no appointments; the server explains why otherwise
   deleteAccount: (id) => data(api.delete(`/admin/users/${id}`)),
   getMessages: () => data(api.get('/admin/messages')),
+  // { action, q, page, size } -> one page of audit events, newest first
+  getAuditLog: (params) => data(api.get('/admin/audit', { params: clean(params) })),
   // Server-side search: { q, status, doctorId, from, to, sort, page, size } -> { content, page, totalElements, totalPages }
   searchAppointments: (params) => data(api.get('/admin/appointments/search', { params: clean(params) })),
   // { role: 'USER' | 'DOCTOR' | 'ADMIN', q, page, size }

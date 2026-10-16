@@ -24,8 +24,10 @@ import com.spring.bioMedical.dto.AppointmentDto;
 import com.spring.bioMedical.dto.PageResponse;
 import com.spring.bioMedical.entity.User;
 import com.spring.bioMedical.entity.Appointment;
+import com.spring.bioMedical.entity.AuditEvent;
 import com.spring.bioMedical.entity.ContactMessage;
 import com.spring.bioMedical.repository.AppointmentRepository;
+import com.spring.bioMedical.repository.AuditEventRepository;
 import com.spring.bioMedical.repository.ContactMessageRepository;
 import com.spring.bioMedical.repository.DoctorLeaveRepository;
 import com.spring.bioMedical.repository.DoctorScheduleRepository;
@@ -33,6 +35,7 @@ import com.spring.bioMedical.exception.ApiException;
 import com.spring.bioMedical.service.AdminServiceImplementation;
 import com.spring.bioMedical.service.AppointmentServiceImplementation;
 import com.spring.bioMedical.service.AnalyticsService;
+import com.spring.bioMedical.service.AuditService;
 import com.spring.bioMedical.service.EmailService;
 
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -56,6 +59,8 @@ public class AdminController {
 	private final AppointmentRepository appointments;
 	private final DoctorScheduleRepository schedules;
 	private final DoctorLeaveRepository leaves;
+	private final AuditService audit;
+	private final AuditEventRepository auditEvents;
 
 	@Value("${app.frontend-url:http://localhost:5173}")
 	private String frontendUrl;
@@ -63,7 +68,8 @@ public class AdminController {
 	@Autowired
 	public AdminController(AdminServiceImplementation obj, AppointmentServiceImplementation app, EmailService emailService,
 			ContactMessageRepository contactMessages, AnalyticsService analyticsService, AppointmentRepository appointments,
-			DoctorScheduleRepository schedules, DoctorLeaveRepository leaves) {
+			DoctorScheduleRepository schedules, DoctorLeaveRepository leaves, AuditService audit,
+			AuditEventRepository auditEvents) {
 		this.adminServiceImplementation = obj;
 		this.appointmentServiceImplementation = app;
 		this.emailService = emailService;
@@ -72,6 +78,8 @@ public class AdminController {
 		this.appointments = appointments;
 		this.schedules = schedules;
 		this.leaves = leaves;
+		this.audit = audit;
+		this.auditEvents = auditEvents;
 	}
 
 	/** Messages sent through the public Contact page, newest first. */
@@ -108,17 +116,20 @@ public class AdminController {
 	}
 
 	@PostMapping("/doctors")
+	@Transactional
 	public ResponseEntity<AdminDto> addDoctor(@Valid @RequestBody AdminDto adminDto) {
 		return ResponseEntity.status(HttpStatus.CREATED).body(createStaff(adminDto, "ROLE_DOCTOR"));
 	}
 
 	@PostMapping("/admins")
+	@Transactional
 	public ResponseEntity<AdminDto> addAdmin(@Valid @RequestBody AdminDto adminDto) {
 		return ResponseEntity.status(HttpStatus.CREATED).body(createStaff(adminDto, "ROLE_ADMIN"));
 	}
 
 	/** Enable or disable an account. Body: {"enabled": false}. */
 	@PatchMapping("/users/{id}/enabled")
+	@Transactional
 	public ResponseEntity<AdminDto> setEnabled(@PathVariable Long id, @RequestBody Map<String, Boolean> body) {
 		User me = adminServiceImplementation.findByEmail(getLoggedInUsername());
 		if (me.getId().equals(id)) {
@@ -130,8 +141,12 @@ public class AdminController {
 		if (enabled && user.getPassword() == null) {
 			throw new ApiException(HttpStatus.BAD_REQUEST, "This person has not set a password yet.");
 		}
+		boolean changed = user.getEnabled() != enabled;
 		user.setEnabled(enabled);
 		adminServiceImplementation.save(user);
+		if (changed) {
+			audit.record(enabled ? AuditEvent.ACCOUNT_ENABLED : AuditEvent.ACCOUNT_DISABLED, AuditService.describe(user), null);
+		}
 		return ResponseEntity.ok(new AdminDto(user));
 	}
 
@@ -152,10 +167,22 @@ public class AdminController {
 			throw new ApiException(HttpStatus.CONFLICT,
 					"This account has appointments, so deleting it would lose medical records. Disable it instead.");
 		}
+		String deleted = AuditService.describe(user);
 		schedules.deleteByDoctorId(user.getId());
 		leaves.deleteByDoctorId(user.getId());
 		adminServiceImplementation.delete(user);
+		audit.record(AuditEvent.ACCOUNT_DELETED, deleted, null);
 		return ResponseEntity.noContent().build();
+	}
+
+	/** The audit log, newest first. Optional action filter and search on who did it or to whom. */
+	@GetMapping("/audit")
+	public ResponseEntity<PageResponse<AuditEvent>> getAuditLog(@RequestParam(required = false) String action,
+			@RequestParam(required = false) String q, @RequestParam(defaultValue = "0") int page,
+			@RequestParam(defaultValue = "20") int size) {
+		return ResponseEntity.ok(PageResponse.of(
+				auditEvents.search(blankToNull(action), like(q), pageRequest(page, size, Sort.by(Sort.Order.desc("at"), Sort.Order.desc("id")))),
+				e -> e));
 	}
 
 	@GetMapping("/profile")
@@ -191,11 +218,16 @@ public class AdminController {
 
 	/** Confirm, complete or cancel any appointment. Body: {"status": "CONFIRMED"}. */
 	@PatchMapping("/appointments/{id}/status")
+	@Transactional
 	public ResponseEntity<AppointmentDto> updateAppointmentStatus(@PathVariable Long id, @RequestBody Map<String, String> body) {
 		Appointment appointment = appointmentServiceImplementation.findById(id)
 				.orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Appointment not found"));
 		String status = String.valueOf(body.get("status")).toUpperCase();
-		return ResponseEntity.ok(new AppointmentDto(appointmentServiceImplementation.changeStatus(appointment, status)));
+		String before = appointment.getStatus() == null ? Appointment.PENDING : appointment.getStatus();
+		Appointment saved = appointmentServiceImplementation.changeStatus(appointment, status);
+		audit.record(AuditEvent.APPOINTMENT_STATUS_CHANGED, "appointment #" + saved.getId() + ": " + saved.getName() + " with "
+				+ saved.getDoctorName() + " on " + saved.getDate() + " " + saved.getTime(), before + " -> " + status);
+		return ResponseEntity.ok(new AppointmentDto(saved));
 	}
 
 	/** How e-mail leaves this deployment, for the admin dashboard. */
@@ -305,6 +337,8 @@ public class AdminController {
 			admin.setSpecialization(null);
 		}
 		adminServiceImplementation.save(admin);
+		audit.record("ROLE_DOCTOR".equals(role) ? AuditEvent.DOCTOR_INVITED : AuditEvent.ADMIN_INVITED,
+				AuditService.describe(admin), "ROLE_DOCTOR".equals(role) ? admin.getSpecialization() : null);
 
 		String link = frontendUrl + "/set-password?token=" + admin.getConfirmationToken();
 		SimpleMailMessage invite = new SimpleMailMessage();
