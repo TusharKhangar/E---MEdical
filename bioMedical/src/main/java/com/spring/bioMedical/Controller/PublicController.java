@@ -11,9 +11,9 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.spring.bioMedical.dto.AdminDto;
-import com.spring.bioMedical.entity.User;
 import com.spring.bioMedical.service.AdminServiceImplementation;
 import com.spring.bioMedical.service.AppointmentServiceImplementation;
+import com.spring.bioMedical.service.DirectoryService;
 
 /** Read-only endpoints anyone can call: the doctor directory and free appointment slots. */
 @RestController
@@ -23,32 +23,23 @@ public class PublicController {
 
 	private final AdminServiceImplementation adminServiceImplementation;
 	private final AppointmentServiceImplementation appointmentServiceImplementation;
+	private final DirectoryService directory;
 
 	public PublicController(AdminServiceImplementation adminServiceImplementation,
-			AppointmentServiceImplementation appointmentServiceImplementation) {
+			AppointmentServiceImplementation appointmentServiceImplementation, DirectoryService directory) {
 		this.adminServiceImplementation = adminServiceImplementation;
 		this.appointmentServiceImplementation = appointmentServiceImplementation;
+		this.directory = directory;
 	}
 
 	/** Active doctors, optionally filtered by specialization (department). */
 	@GetMapping
 	public ResponseEntity<List<AdminDto>> getDoctors(@RequestParam(required = false) String specialization) {
-		List<AdminDto> doctors = adminServiceImplementation.findByRole("ROLE_DOCTOR").stream()
-				.filter(User::getEnabled)
+		List<AdminDto> doctors = directory.activeDoctors().stream()
 				.filter(d -> specialization == null || specialization.isBlank()
 						|| specialization.equalsIgnoreCase(d.getSpecialization()))
-				.map(PublicController::publicView)
 				.toList();
 		return ResponseEntity.ok(doctors);
-	}
-
-	/** A doctor without contact details, which are not public. */
-	private static AdminDto publicView(User doctor) {
-		AdminDto dto = new AdminDto(doctor);
-		dto.setEmail(null);
-		dto.setPhoneNumber(null);
-		dto.setLastseen(null);
-		return dto;
 	}
 
 	/** Free time slots for a doctor on a date (yyyy-MM-dd). */

@@ -9,6 +9,7 @@ import java.util.Optional;
 import java.util.Set;
 
 import io.micrometer.core.instrument.Metrics;
+import org.springframework.cache.annotation.Cacheable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,6 +20,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.spring.bioMedical.config.CacheConfig;
 import com.spring.bioMedical.entity.User;
 import com.spring.bioMedical.entity.Appointment;
 import com.spring.bioMedical.exception.ApiException;
@@ -27,6 +29,9 @@ import com.spring.bioMedical.repository.AppointmentRepository;
 
 @Service
 public class AppointmentServiceImplementation  {
+
+	@Autowired
+	private CacheConfig.Evictions evictions;
 
 	private static final Logger logger = LoggerFactory.getLogger(AppointmentServiceImplementation.class);
 
@@ -78,7 +83,8 @@ public class AppointmentServiceImplementation  {
 		appointmentRepository.deleteById(id);
 	}
 
-	/** Free slots for a doctor on a date: their working hours, minus leave, booked and past slots. */
+	/** Free slots for a doctor on a date: their working hours, minus leave, booked and past slots. Cached 30 s. */
+	@Cacheable(cacheNames = CacheConfig.SLOTS, key = "T(com.spring.bioMedical.config.CacheConfig).slotKey(#doctorId, #date)")
 	public List<String> availableSlots(Long doctorId, String date) {
 		LocalDate day = parseDate(date);
 		Set<String> taken = Set.copyOf(appointmentRepository.findTakenTimes(doctorId, date));
@@ -107,6 +113,7 @@ public class AppointmentServiceImplementation  {
 		appointment.setStatus(Appointment.PENDING);
 		appointment.setRegtime(LocalDateTime.now().withNano(0).toString());
 		Appointment saved = appointmentRepository.save(appointment);
+		evictions.slots(doctor.getId(), date);
 		Metrics.counter("emedical.bookings", "result", "booked").increment();
 		notifications.bookingReceived(saved);
 		return saved;
@@ -126,6 +133,8 @@ public class AppointmentServiceImplementation  {
 			throw new ApiException(HttpStatus.BAD_REQUEST, "That is already the time of this appointment.");
 		}
 		checkSlot(patient, doctor, date, time);
+		evictions.slots(doctor.getId(), appointment.getDate());
+		evictions.slots(doctor.getId(), date);
 		appointment.setDate(date);
 		appointment.setTime(time);
 		appointment.setStatus(Appointment.PENDING);
@@ -198,6 +207,7 @@ public class AppointmentServiceImplementation  {
 		}
 		appointment.setStatus(newStatus);
 		Appointment saved = appointmentRepository.save(appointment);
+		evictions.slots(saved.getDoctorId(), saved.getDate()); // a cancellation frees the slot
 		notifications.statusChanged(saved, byPatient);
 		return saved;
 	}

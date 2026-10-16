@@ -37,6 +37,7 @@ const patientTokens = await Promise.all([1, 2, 3, 4, 5].map((i) => login(`patien
 let n = 0;
 const next = (list) => list[n++ % list.length];
 const scenarios = [
+  ['public: doctor directory', () => get('/api/doctors')],
   ['public: free slots for a doctor', () => get(`/api/doctors/${next(doctors).id}/slots?date=${day(1 + (n % 60))}`)],
   ['patient: own appointments', () => get('/api/user/appointments', next(patientTokens))],
   ['doctor: own appointments', () => get('/api/doctor/appointments', next(doctorTokens))],

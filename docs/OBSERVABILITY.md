@@ -15,6 +15,7 @@ Spring Boot Actuator with Micrometer publishes everything at `/actuator/promethe
 | `emedical_appointments_pending` | Appointments waiting for a doctor to confirm |
 | `hikaricp_connections_active` / `_pending` / `_max` | Database pool. `pending` above 0 means requests are queuing for a connection (see the pool stall in [PERFORMANCE.md](PERFORMANCE.md)) |
 | `jvm_*`, `process_*` | Memory, garbage collection, threads, CPU |
+| `cache_gets_total{cache, result}` | Hits and misses for the `slots`, `doctors` and `analytics` caches |
 
 **Who can read it:** a request with `Authorization: Bearer <METRICS_TOKEN>` (for Prometheus), or a signed-in admin. Everyone else gets 401 or 403. The token is compared in constant time. Without `METRICS_TOKEN`, only admins can read it.
 
@@ -22,7 +23,7 @@ The counters are recorded where things happen (`AppointmentServiceImplementation
 
 ## Dashboard
 
-`observability/grafana/dashboards/e-medical.json` has 11 panels: request rate, p95 latency, 5xx error ratio, pending appointments, then per-endpoint rate and p95, bookings, sign-ins, e-mails, the database pool and JVM heap.
+`observability/grafana/dashboards/e-medical.json` has 12 panels: request rate, p95 latency, 5xx error ratio, pending appointments, then per-endpoint rate and p95, bookings, sign-ins, e-mails, the database pool, JVM heap and cache hit ratio.
 
 ### Locally, with Docker
 

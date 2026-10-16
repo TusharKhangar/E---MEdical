@@ -1,15 +1,18 @@
 package com.spring.bioMedical.service;
 
+import java.io.Serializable;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
+import com.spring.bioMedical.config.CacheConfig;
 import com.spring.bioMedical.entity.Appointment;
 import com.spring.bioMedical.exception.ApiException;
 import com.spring.bioMedical.repository.AppointmentRepository;
@@ -29,14 +32,18 @@ public class AnalyticsService {
 		this.appointments = appointments;
 	}
 
-	public record Count(String label, long count) {}
+	// Serializable so the result can be cached in Redis too
+	public record Count(String label, long count) implements Serializable {}
 
-	public record DoctorLoad(Long doctorId, String doctorName, long appointments, long completed, long cancelled) {}
+	public record DoctorLoad(Long doctorId, String doctorName, long appointments, long completed, long cancelled)
+			implements Serializable {}
 
 	public record Analytics(String from, String today, String to, long total, double completionRate,
 			double cancellationRate, List<Count> perDay, List<Count> perStatus, List<Count> perDepartment,
-			List<Count> perTime, List<DoctorLoad> topDoctors) {}
+			List<Count> perTime, List<DoctorLoad> topDoctors) implements Serializable {}
 
+	/** Cached for a minute: six aggregate queries over every appointment in the range are the slowest read. */
+	@Cacheable(CacheConfig.ANALYTICS)
 	public Analytics forLastDays(int days) {
 		if (days < 1 || days > 365) {
 			throw new ApiException(HttpStatus.BAD_REQUEST, "Choose a range between 1 and 365 days.");

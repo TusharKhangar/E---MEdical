@@ -15,7 +15,7 @@ import lombok.Setter;
  */
 @Getter
 @Setter
-public class AdminDto {
+public class AdminDto implements java.io.Serializable {
 
     private Long id;
 
