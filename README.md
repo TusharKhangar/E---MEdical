@@ -187,6 +187,10 @@ Browser (Playwright, `Frontend/medical-frontend/e2e/`, run by CI against the rea
 
 CI runs the backend tests, the frontend lint, tests and build, and a Docker image build on every push.
 
+## Performance
+
+On 193,561 appointments (MySQL 8, 16 concurrent clients, a laptop), database indexes took the busiest endpoints from 22 to 59 requests per second up to 186 to 2,685, with p95 latency mostly under 60 ms. The same load test found two concurrency bugs that unit tests missed: double bookings on MySQL's default isolation level (fixed) and a connection-pool stall caused by MySQL's table-based IDs. Numbers, causes and how to rerun it are in [docs/PERFORMANCE.md](docs/PERFORMANCE.md).
+
 ## Deploy
 
 The repository contains a [`render.yaml`](render.yaml) blueprint for [Render](https://render.com): a free web service built from the `Dockerfile` and a free PostgreSQL database, with every environment variable wired up. Pick **New → Blueprint** in Render, select the repository, and after the first deploy set `FRONTEND_URL` and `CORS_ALLOWED_ORIGINS` to the URL Render assigned.

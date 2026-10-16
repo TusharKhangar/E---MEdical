@@ -15,6 +15,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.spring.bioMedical.entity.User;
@@ -89,7 +90,7 @@ public class AppointmentServiceImplementation  {
 	/**
 	 * Books a slot for the patient with the doctor after checking the date, time and that the slot is free.
 	 */
-	@Transactional
+	@Transactional(isolation = Isolation.READ_COMMITTED)
 	public Appointment book(User patient, User doctor, String date, String time, String description) {
 		checkSlot(patient, doctor, date, time);
 
@@ -113,7 +114,7 @@ public class AppointmentServiceImplementation  {
 	 * Moves a pending or confirmed appointment to another free slot with the same doctor. It goes back
 	 * to PENDING, because the doctor has to accept the new time.
 	 */
-	@Transactional
+	@Transactional(isolation = Isolation.READ_COMMITTED)
 	public Appointment reschedule(Appointment appointment, User patient, User doctor, String date, String time) {
 		if (!appointment.isActive()) {
 			throw new ApiException(HttpStatus.BAD_REQUEST,
@@ -151,6 +152,9 @@ public class AppointmentServiceImplementation  {
 		// Two people clicking the same slot at the same moment would both pass the checks below and both
 		// insert. Locking the doctor's and the patient's rows (SELECT ... FOR UPDATE, in id order to avoid
 		// deadlocks) makes concurrent bookings for either of them wait their turn until this one commits.
+		// The checks after the lock must see that commit, so book() and reschedule() run in READ COMMITTED: on
+		// MySQL's default REPEATABLE READ they would reuse the snapshot taken before waiting, miss the new
+		// booking and double-book (a load test on MySQL got 19 bookings for one slot).
 		userRepository.lockForBooking(List.of(doctor.getId(), patient.getId()));
 
 		if (appointmentRepository.isSlotTaken(doctor.getId(), date, time)) {

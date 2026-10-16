@@ -5,6 +5,7 @@ import  jakarta.persistence.Entity;
 import  jakarta.persistence.GeneratedValue;
 import  jakarta.persistence.GenerationType;
 import  jakarta.persistence.Id;
+import  jakarta.persistence.Index;
 import  jakarta.persistence.Table;
 
 import lombok.Data;
@@ -15,7 +16,13 @@ import lombok.Data;
  */
 @Entity
 @Data
-@Table(name = "appointment")
+// Indexes for the busiest queries (see docs/PERFORMANCE.md): a doctor's day and list, a patient's list,
+// date ranges for analytics, and the admin's status filter.
+@Table(name = "appointment", indexes = {
+		@Index(name = "idx_appointment_doctor_date", columnList = "doctor_id, date, time"),
+		@Index(name = "idx_appointment_email_date", columnList = "email, date"),
+		@Index(name = "idx_appointment_date", columnList = "date"),
+		@Index(name = "idx_appointment_status_date", columnList = "status, date") })
 public class Appointment {
 
 	public static final String PENDING = "PENDING";
