@@ -28,6 +28,10 @@ import java.util.Map;
 @SecurityRequirement(name = "bearer")
 public class ProfileController {
 
+	// The public doctor list is cached (see CacheConfig); optional so web-layer tests don't need it
+	@org.springframework.beans.factory.annotation.Autowired
+	private org.springframework.beans.factory.ObjectProvider<com.spring.bioMedical.config.CacheConfig.Evictions> cacheEvictions;
+
 	private final AdminServiceImplementation adminServiceImplementation;
 	private final PasswordEncoder passwordEncoder;
 
@@ -67,6 +71,7 @@ public class ProfileController {
 			user.setSpecialization(body.get("specialization"));
 		}
 		adminServiceImplementation.save(user);
+		cacheEvictions.ifAvailable(e -> e.ifDoctor(user));
 		return ResponseEntity.ok(new UserProfileResponse(user));
 	}
 

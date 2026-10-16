@@ -14,6 +14,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.spring.bioMedical.config.CacheConfig;
 import com.spring.bioMedical.entity.DoctorLeave;
 import com.spring.bioMedical.entity.DoctorSchedule;
 import com.spring.bioMedical.exception.ApiException;
@@ -27,6 +28,10 @@ import com.spring.bioMedical.repository.DoctorScheduleRepository;
  */
 @Service
 public class ScheduleService {
+
+	// Free slots are cached; a change to hours or leave clears them (after commit)
+	@org.springframework.beans.factory.annotation.Autowired
+	private CacheConfig.Evictions evictions;
 
 	public static final String DEFAULT_START = "09:00";
 	public static final String DEFAULT_END = "18:00";
@@ -82,6 +87,7 @@ public class ScheduleService {
 			row.setEndTime(format(end));
 			schedules.save(row);
 		}
+		evictions.allSlots();
 		return weeklySchedule(doctorId);
 	}
 
@@ -129,6 +135,7 @@ public class ScheduleService {
 		leave.setDoctorId(doctorId);
 		leave.setDate(day.toString());
 		leave.setReason(reason == null || reason.isBlank() ? null : reason.trim());
+		evictions.allSlots();
 		return leaves.save(leave);
 	}
 
@@ -138,6 +145,7 @@ public class ScheduleService {
 				.filter(l -> l.getDoctorId().equals(doctorId))
 				.orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Leave not found"));
 		leaves.delete(leave);
+		evictions.allSlots();
 	}
 
 	private static LocalTime hour(String value) {

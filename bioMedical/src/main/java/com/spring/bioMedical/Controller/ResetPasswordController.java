@@ -29,6 +29,10 @@ import java.util.UUID;
 @RequestMapping("/api")
 public class ResetPasswordController {
 
+	// The public doctor list is cached (see CacheConfig); optional so web-layer tests don't need it
+	@org.springframework.beans.factory.annotation.Autowired
+	private org.springframework.beans.factory.ObjectProvider<com.spring.bioMedical.config.CacheConfig.Evictions> cacheEvictions;
+
     // Same reply whether or not the account exists, so the form cannot be used to discover e-mails.
     static final String RESET_SENT = "If that email exists, a reset link has been sent to it.";
 
@@ -80,6 +84,7 @@ public class ResetPasswordController {
         user.get().setEnabled(true);
         user.get().setConfirmationToken(null);
         userRepository.save(user.get());
+        cacheEvictions.ifAvailable(e -> e.ifDoctor(user.get()));
         return ResponseEntity.ok("Your password has been reset. You can now log in.");
     }
 }

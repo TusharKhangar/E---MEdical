@@ -127,6 +127,7 @@ All settings come from environment variables (see [`.env.example`](.env.example)
 | `PORT` | HTTP port | `8080` |
 | `METRICS_TOKEN` | Bearer token Prometheus sends to read `/actuator/prometheus` (admins can always read it) | empty = admins only |
 | `LOGGING_CONFIG` | `classpath:logback-json.xml` for one JSON object per log line | plain text |
+| `CACHE_TYPE`, `REDIS_URL` | `caffeine` (in memory), `redis` (shared between instances, needs `REDIS_URL`), or `none` | `caffeine` |
 
 ## API
 
@@ -193,7 +194,7 @@ CI runs the backend tests, the frontend lint, tests and build, and a Docker imag
 
 ## Performance
 
-On 193,561 appointments (MySQL 8, 16 concurrent clients, a laptop), database indexes took the busiest endpoints from 22 to 59 requests per second up to 186 to 2,685, with p95 latency mostly under 60 ms. The same load test found two concurrency bugs that unit tests missed: double bookings on MySQL's default isolation level (fixed) and a connection-pool stall caused by MySQL's table-based IDs. Numbers, causes and how to rerun it are in [docs/PERFORMANCE.md](docs/PERFORMANCE.md).
+On 193,561 appointments (MySQL 8, 16 concurrent clients, a laptop), database indexes took the busiest endpoints from 22 to 59 requests per second up to 186 to 2,685, with p95 latency mostly under 60 ms. The same load test found two concurrency bugs that unit tests missed: double bookings on MySQL's default isolation level (fixed) and a connection-pool stall caused by MySQL's table-based IDs. Numbers, causes and how to rerun it are in [docs/PERFORMANCE.md](docs/PERFORMANCE.md). Caches for free slots, the doctor directory and analytics (each cleared after commit by the writes that change it) took analytics from 17 to 4,768 requests per second in a read-only benchmark.
 
 ## Deploy
 

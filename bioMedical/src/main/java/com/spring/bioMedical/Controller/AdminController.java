@@ -71,6 +71,10 @@ public class AdminController {
 	@Autowired
 	private OutboxEmailRepository outbox;
 
+	// The public doctor list is cached; enabling, disabling or deleting a doctor clears it
+	@Autowired
+	private com.spring.bioMedical.config.CacheConfig.Evictions cacheEvictions;
+
 	@Autowired
 	public AdminController(AdminServiceImplementation obj, AppointmentServiceImplementation app, EmailService emailService,
 			ContactMessageRepository contactMessages, AnalyticsService analyticsService, AppointmentRepository appointments,
@@ -151,6 +155,7 @@ public class AdminController {
 		user.setEnabled(enabled);
 		adminServiceImplementation.save(user);
 		if (changed) {
+			cacheEvictions.doctors();
 			audit.record(enabled ? AuditEvent.ACCOUNT_ENABLED : AuditEvent.ACCOUNT_DISABLED, AuditService.describe(user), null);
 		}
 		return ResponseEntity.ok(new AdminDto(user));
@@ -177,6 +182,7 @@ public class AdminController {
 		schedules.deleteByDoctorId(user.getId());
 		leaves.deleteByDoctorId(user.getId());
 		adminServiceImplementation.delete(user);
+		cacheEvictions.doctors();
 		audit.record(AuditEvent.ACCOUNT_DELETED, deleted, null);
 		return ResponseEntity.noContent().build();
 	}
