@@ -1,0 +1,14 @@
+# Prometheus for the local Docker stack (docker compose --profile observability up).
+# For the live site, point a hosted Prometheus or Grafana Cloud at https://<your-app>/actuator/prometheus
+# with the header "Authorization: Bearer <METRICS_TOKEN>".
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: e-medical
+    metrics_path: /actuator/prometheus
+    authorization:
+      type: Bearer
+      credentials: local-metrics-token   # same as METRICS_TOKEN in docker-compose.yml; local only
+    static_configs:
+      - targets: ["app:8080"]

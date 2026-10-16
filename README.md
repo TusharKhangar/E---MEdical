@@ -123,6 +123,8 @@ All settings come from environment variables (see [`.env.example`](.env.example)
 | `LOGIN_MAX_FAILURES`, `LOGIN_LOCK_MINUTES` | Sign-in lockout | `5`, `15` |
 | `REMINDERS_ENABLED`, `REMINDERS_CRON`, `APP_TIME_ZONE` | Day-before reminder e-mails | `true`, `0 0 18 * * *`, `Asia/Kolkata` |
 | `PORT` | HTTP port | `8080` |
+| `METRICS_TOKEN` | Bearer token Prometheus sends to read `/actuator/prometheus` (admins can always read it) | empty = admins only |
+| `LOGGING_CONFIG` | `classpath:logback-json.xml` for one JSON object per log line | plain text |
 
 ## API
 
@@ -196,6 +198,10 @@ On 193,561 appointments (MySQL 8, 16 concurrent clients, a laptop), database ind
 The repository contains a [`render.yaml`](render.yaml) blueprint for [Render](https://render.com): a free web service built from the `Dockerfile` and a free PostgreSQL database, with every environment variable wired up. Pick **New → Blueprint** in Render, select the repository, and after the first deploy set `FRONTEND_URL` and `CORS_ALLOWED_ORIGINS` to the URL Render assigned.
 
 Any host that runs a Docker image works the same way: build the image, point `DB_*` at a database, set `JWT_SECRET`.
+
+## Observability
+
+Prometheus metrics at `/actuator/prometheus`: request rate and p95/p99 latency per endpoint, server errors, bookings (booked, slot taken, patient busy), sign-ins (success, wrong password, locked), e-mails per provider (sent, failed), appointments waiting for a doctor, the database pool and the JVM. Every response has an `X-Request-Id` header and every log line carries the same id, as plain text or JSON. `docker compose --profile observability up --build` starts Prometheus and Grafana with a ready-made dashboard. Details and how to watch the live site are in [docs/OBSERVABILITY.md](docs/OBSERVABILITY.md).
 
 ## Project layout
 

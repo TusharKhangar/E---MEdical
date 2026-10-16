@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
+import io.micrometer.core.instrument.Metrics;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -106,6 +107,7 @@ public class AppointmentServiceImplementation  {
 		appointment.setStatus(Appointment.PENDING);
 		appointment.setRegtime(LocalDateTime.now().withNano(0).toString());
 		Appointment saved = appointmentRepository.save(appointment);
+		Metrics.counter("emedical.bookings", "result", "booked").increment();
 		notifications.bookingReceived(saved);
 		return saved;
 	}
@@ -158,9 +160,11 @@ public class AppointmentServiceImplementation  {
 		userRepository.lockForBooking(List.of(doctor.getId(), patient.getId()));
 
 		if (appointmentRepository.isSlotTaken(doctor.getId(), date, time)) {
+			Metrics.counter("emedical.bookings", "result", "slot_taken").increment();
 			throw new ApiException(HttpStatus.CONFLICT, "That slot is already booked. Please choose another time.");
 		}
 		if (appointmentRepository.patientHasAppointmentAt(patient.getEmail(), date, time)) {
+			Metrics.counter("emedical.bookings", "result", "patient_busy").increment();
 			throw new ApiException(HttpStatus.CONFLICT,
 					"You already have an appointment at " + time + " on that day. Please choose another time.");
 		}

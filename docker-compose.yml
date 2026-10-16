@@ -5,6 +5,10 @@
 #
 # Sign in with ADMIN_EMAIL / ADMIN_PASSWORD from your .env (the first administrator is created on first start).
 # E-mail is optional: without BREVO_API_KEY or MAIL_USERNAME/MAIL_PASSWORD, links are printed in the app logs.
+#
+# Metrics too: docker compose --profile observability up --build
+#   Grafana    http://localhost:3000  (admin / admin), dashboard "E-Medical"
+#   Prometheus http://localhost:9090
 
 services:
   db:
@@ -40,9 +44,33 @@ services:
       MAIL_PASSWORD: ${MAIL_PASSWORD:-}
       BREVO_API_KEY: ${BREVO_API_KEY:-}
       MAIL_FROM: ${MAIL_FROM:-}
+      METRICS_TOKEN: local-metrics-token
     depends_on:
       db:
         condition: service_healthy
+
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    profiles: [observability]
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    depends_on:
+      - app
+
+  grafana:
+    image: grafana/grafana:11.2.0
+    profiles: [observability]
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    volumes:
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      - prometheus
 
 volumes:
   mysql-data:

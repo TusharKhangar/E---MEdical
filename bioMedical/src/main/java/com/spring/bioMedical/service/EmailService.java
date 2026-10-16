@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import io.micrometer.core.instrument.Metrics;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
@@ -104,7 +105,15 @@ public class EmailService {
 	 * admin's "send me a test e-mail" button, which needs the answer straight away.
 	 */
 	public Optional<String> sendNow(SimpleMailMessage email) {
-		return switch (mode()) {
+		String provider = mode();
+		Optional<String> error = send(provider, email);
+		// Metric emedical_emails_total{provider, result}: shows a provider starting to refuse mail
+		Metrics.counter("emedical.emails", "provider", provider, "result", error.isEmpty() ? "sent" : "failed").increment();
+		return error;
+	}
+
+	private Optional<String> send(String provider, SimpleMailMessage email) {
+		return switch (provider) {
 			case "brevo" -> sendWithBrevo(email);
 			case "mailjet" -> sendWithMailjet(email);
 			case "smtp" -> sendWithSmtp(email);
